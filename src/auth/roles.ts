@@ -1,0 +1,22 @@
+export type Role =
+  | "ADMIN"
+  | "AMMINISTRATIVO"
+  | "RESPONSABILE"
+  | "COMMERCIALE"
+  | "BO"
+  | "BOF"
+  | "BOU"
+  | "CONSEGNATORE"
+  | "VRC";
+
+export const Roles: Record<Role, Role> = {
+  ADMIN: "ADMIN",
+  AMMINISTRATIVO: "AMMINISTRATIVO",
+  RESPONSABILE: "RESPONSABILE",
+  COMMERCIALE: "COMMERCIALE",
+  BO: "BO",
+  BOF: "BOF",
+  BOU: "BOU",
+  CONSEGNATORE: "CONSEGNATORE",
+  VRC: "VRC",
+};
