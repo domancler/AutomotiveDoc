@@ -152,14 +152,14 @@ function reasonByState(action: Action, state?: string) {
 }
 
 function ActionCard({
-                      title,
-                      subtitle,
-                      icon,
-                      tone = "default",
-                      enabled,
-                      onClick,
-                      disabledReason,
-                    }: {
+  title,
+  subtitle,
+  icon,
+  tone = "default",
+  enabled,
+  onClick,
+  disabledReason,
+}: {
   title: string;
   subtitle: string;
   icon: React.ReactNode;
@@ -168,39 +168,44 @@ function ActionCard({
   onClick: () => void;
   disabledReason?: string;
 }) {
-  const variant =
-    tone === "danger" ? "destructive" : tone === "outline" ? "outline" : "default";
+  const variant = tone === "danger" ? "destructive" : tone === "outline" ? "outline" : "default";
 
   return (
-    <div className="rounded-2xl border bg-card p-4">
-      <div className="mb-3 flex items-start justify-between gap-3">
+    <div
+      className={cn(
+        "rounded-2xl border bg-card p-4",
+        !enabled && "border-dashed opacity-70"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 grid h-10 w-10 place-items-center rounded-xl bg-secondary text-secondary-foreground">
-            {icon}
-          </div>
+          <div className="mt-0.5 rounded-xl border p-2">{icon}</div>
           <div>
             <div className="font-semibold leading-tight">{title}</div>
             <div className="text-sm text-muted-foreground">{subtitle}</div>
           </div>
         </div>
 
-        {!enabled ? (
-          <Badge variant="secondary" className="whitespace-nowrap">
-            Non disponibile
-          </Badge>
-        ) : null}
+        {!enabled && <Badge variant="destructive">Non disponibile</Badge>}
       </div>
 
-      <Button
-        type="button"
-        variant={variant as any}
-        className={cn("w-full", !enabled && "cursor-not-allowed")}
-        disabled={!enabled}
-        onClick={onClick}
-        title={!enabled ? disabledReason : undefined}
-      >
-        {enabled ? "Esegui" : disabledReason ?? "Non disponibile"}
-      </Button>
+      {!enabled && disabledReason && (
+        <div className="mt-3 text-sm text-muted-foreground">
+          <span className="font-medium">Motivo:</span> {disabledReason}
+        </div>
+      )}
+
+      <div className="mt-4">
+        <Button
+          variant={variant as any}
+          className={cn("w-full", !enabled && "cursor-not-allowed")}
+          disabled={!enabled}
+          onClick={onClick}
+          title={!enabled ? disabledReason : undefined}
+        >
+          {enabled ? "Esegui" : "Non disponibile"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -254,23 +259,6 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="rounded-2xl border bg-card p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-lg font-semibold">Azioni</div>
-            <div className="text-sm text-muted-foreground">
-              Vedi solo le azioni del tuo ruolo. Le azioni si attivano nello stato corretto.
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">Stato: {niceStateLabel(state)}</Badge>
-            <Badge variant="outline">Ruolo: {role}</Badge>
-          </div>
-        </div>
-      </div>
-
       {/* ✅ COMMERCIALE: vede SOLO queste */}
       {role === "COMMERCIALE" && (
         <RolePanel
@@ -512,15 +500,6 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       )}
 
       {/* Ruoli “solo lettura” o admin */}
-      {(role === "AMMINISTRATIVO" || role === "RESPONSABILE") && (
-        <div className="rounded-2xl border bg-card p-4">
-          <div className="font-semibold">Nessuna azione operativa</div>
-          <div className="text-sm text-muted-foreground">
-            Questo ruolo è principalmente di consultazione (o gestione assegnazioni/configurazioni).
-          </div>
-        </div>
-      )}
-
       {role === "ADMIN" && (
         <div className="rounded-2xl border bg-card p-4">
           <div className="font-semibold">Admin</div>

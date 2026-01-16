@@ -69,11 +69,19 @@ export function FascicoloDettaglioPage() {
         </CardContent>
       </Card>
 
+      <div className="space-y-3">
+        <div className="text-lg font-semibold">Azioni</div>
+        <FascicoloActionsTab fascicolo={fascicolo} />
+      </div>
+
+      <div className="pt-2">
+        <div className="text-lg font-semibold">Sezioni</div>
+      </div>
+
       <Tabs value={tab} onValueChange={setTab} defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="docs">Documenti</TabsTrigger>
-          <TabsTrigger value="azioni">Azioni</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="notes">Note</TabsTrigger>
         </TabsList>
@@ -171,11 +179,6 @@ export function FascicoloDettaglioPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="azioni">
-          <FascicoloActionsTab fascicolo={fascicolo} />
-        </TabsContent>
-
         <TabsContent value="timeline">
           <Card>
             <CardHeader>
