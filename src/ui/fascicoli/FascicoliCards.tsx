@@ -4,10 +4,12 @@ import { CalendarDays, Hash, MoreHorizontal, User } from "lucide-react";
 
 import type { Fascicolo } from "@/mock/fascicoli";
 import { Badge } from "@/ui/components/badge";
-import { Button } from "@/ui/components/button";
+import { Button, buttonVariants } from "@/ui/components/button";
 import { Card } from "@/ui/components/card";
 import { cn, formatEuro } from "@/lib/utils";
 import { statoVariant } from "@/ui/fascicoli/status";
+import { useAuth } from "@/auth/AuthProvider";
+import { visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
 
 type PageSize = 10 | 20 | 50;
 
@@ -40,6 +42,7 @@ export function FascicoliCards({
   rows: Fascicolo[];
   initialPageSize?: PageSize;
 }) {
+  const { user } = useAuth();
   const [pageSize, setPageSize] = React.useState<PageSize>(initialPageSize);
   const [page, setPage] = React.useState(1);
 
@@ -102,6 +105,7 @@ export function FascicoliCards({
         {slice.map((f) => {
           const vehicle = `${f.veicolo.marca} ${f.veicolo.modello}`;
           const idLabel = f.numero || f.id;
+          const vs = f.workflow ? visibleStatusForRole(f, user?.role as any) : null;
           const targaOrVin = f.veicolo.targa
             ? { label: "Targa", value: f.veicolo.targa }
             : f.veicolo.vin
@@ -117,9 +121,15 @@ export function FascicoliCards({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="min-w-0 truncate font-semibold">{vehicle}</div>
-                    <Badge className={cn("border-0")} variant={statoVariant(f.stato) as any}>
-                      {f.stato}
-                    </Badge>
+                    {vs ? (
+                      <Badge className={cn("border-0")} variant={vs.variant as any}>
+                        {vs.label}
+                      </Badge>
+                    ) : (
+                      <Badge className={cn("border-0")} variant={statoVariant(f.stato) as any}>
+                        {f.stato}
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-1">
@@ -142,9 +152,12 @@ export function FascicoliCards({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/fascicoli/${f.id}`}>Dettagli</Link>
-                  </Button>
+                  <Link
+                    to={`/fascicoli/${f.id}`}
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                  >
+                    Dettagli
+                  </Link>
                   <Button variant="ghost" size="icon" aria-label="Altre azioni" disabled>
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>

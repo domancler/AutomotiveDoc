@@ -69,7 +69,8 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
 
   // Regole di lettura
   if (action === "DASHBOARD.VIEW") {
-    return role !== "ADMIN";
+    // Qui l'ADMIN è già stato gestito sopra.
+    return true;
   }
 
   if (action === "FASCICOLO.VIEW_ALL") {

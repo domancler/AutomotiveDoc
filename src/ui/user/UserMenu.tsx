@@ -7,7 +7,13 @@ import { useOnClickOutside } from "@/lib/useOnClickOutside";
 // <-- se il tuo auth hook ha un path/nome diverso, cambia QUI
 import { useAuth } from "@/auth/AuthProvider";
 
-function roleLabel(role: string) {
+function initials(name?: string) {
+  if (!name) return "U";
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase()).join("") || "U";
+}
+
+function roleLabel(role?: string) {
   switch (role) {
     case "ADMIN":
       return "Admin";
@@ -28,14 +34,8 @@ function roleLabel(role: string) {
     case "VRC":
       return "Controllo consegna";
     default:
-      return role;
+      return role ?? "Utente";
   }
-}
-
-function initials(name?: string) {
-  if (!name) return "U";
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase()).join("") || "U";
 }
 
 export function UserMenu() {
@@ -57,8 +57,9 @@ export function UserMenu() {
 
   const displayName =
     user?.name || user?.username || user?.email || user?.id || "Utente";
-  const rawRole = user?.role || user?.ruolo || "utente";
-  const role = roleLabel(String(rawRole));
+  const roleCode = user?.role || user?.ruolo || "utente";
+  const role = roleLabel(roleCode);
+  const roleText = roleLabel(role);
 
   return (
     <div ref={wrapRef} className="relative">
@@ -78,7 +79,7 @@ export function UserMenu() {
         </span>
         <span className="hidden sm:block leading-tight text-left">
           <span className="block font-medium">{displayName}</span>
-          <span className="block text-xs text-muted-foreground">{role}</span>
+          <span className="block text-xs text-muted-foreground">{roleText}</span>
         </span>
         <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} />
       </button>
@@ -87,7 +88,7 @@ export function UserMenu() {
         <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-soft">
           <div className="p-3 border-b">
             <div className="text-sm font-medium">{displayName}</div>
-            <div className="text-xs text-muted-foreground">{role}</div>
+            <div className="text-xs text-muted-foreground">{roleText}</div>
           </div>
 
           <div className="p-1">

@@ -1,17 +1,19 @@
 import { useMemo, useState } from "react";
-import { fascicoli } from "@/mock/fascicoli";
+import { useFascicoli } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card";
 import { Input } from "@/ui/components/input";
-import { FascicoliCards } from "@/ui/fascicoli/FascicoliCards";
+import { FascicoliTable } from "@/ui/fascicoli/FascicoliTable";
 import { FascicoliFilters, applyFascicoliFilters, createEmptyFilters } from "@/ui/fascicoli/FascicoliFilters";
+import { FascicoliCards } from "@/ui/fascicoli/FascicoliCards";
 
 export function FascicoliInCorsoPage() {
+  const fascicoli = useFascicoli();
   const [q, setQ] = useState("");
   const [filters, setFilters] = useState(createEmptyFilters());
 
   const base = useMemo(
     () => fascicoli.filter((f) => f.stato === "In compilazione" || f.stato === "In approvazione"),
-    [],
+    [fascicoli],
   );
 
   const rows = useMemo(() => {

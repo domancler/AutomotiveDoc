@@ -1,24 +1,25 @@
 import { useMemo } from "react";
-import { fascicoli } from "@/mock/fascicoli";
+import { useFascicoli } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
 import { Badge } from "@/ui/components/badge";
 import { formatEuro } from "@/lib/utils";
 import { PieChart, Pie, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 export function DashboardPage() {
+  const fascicoli = useFascicoli();
   const kpi = useMemo(() => {
     const total = fascicoli.length;
     const inCorso = fascicoli.filter((f) => f.stato === "In compilazione" || f.stato === "In approvazione").length;
     const firmati = fascicoli.filter((f) => f.stato === "Firmato").length;
     const valoreTot = fascicoli.reduce((sum, f) => sum + f.valore, 0);
     return { total, inCorso, firmati, valoreTot };
-  }, []);
+  }, [fascicoli]);
 
   const statoData = useMemo(() => {
     const map = new Map<string, number>();
     for (const f of fascicoli) map.set(f.stato, (map.get(f.stato) ?? 0) + 1);
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, []);
+  }, [fascicoli]);
 
   const progressData = useMemo(() => {
     // "Fake" bucket progress
@@ -36,7 +37,7 @@ export function DashboardPage() {
       else buckets[3].value++;
     }
     return buckets;
-  }, []);
+  }, [fascicoli]);
 
   return (
     <div className="space-y-6">

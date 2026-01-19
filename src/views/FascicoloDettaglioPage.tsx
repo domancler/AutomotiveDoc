@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { fascicoli } from "@/mock/fascicoli";
+import { useFascicolo } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
 import { Badge } from "@/ui/components/badge";
 import { Button } from "@/ui/components/button";
@@ -8,9 +8,11 @@ import { Input } from "@/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Progress } from "@/ui/components/progress";
 import { cn, formatEuro } from "@/lib/utils";
-import { statoVariant } from "@/ui/fascicoli/status";
 import { FileUp, CheckCircle2, Clock3, XCircle, Car, User, CalendarDays } from "lucide-react";
 import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
+import { useAuth } from "@/auth/AuthProvider";
+import { branchStatusBadges, visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
+import { statoVariant } from "@/ui/fascicoli/status";
 
 function formatDateIT(iso: string) {
   try {
@@ -26,7 +28,8 @@ function formatDateIT(iso: string) {
 
 export function FascicoloDettaglioPage() {
   const { id } = useParams();
-  const fascicolo = useMemo(() => fascicoli.find((f) => f.id === id), [id]);
+  const fascicolo = useFascicolo(id);
+  const { user } = useAuth();
 
   const [tab, setTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
@@ -46,6 +49,8 @@ export function FascicoloDettaglioPage() {
     const signed = fascicolo.documenti.filter((d) => d.firmato).length;
     return { required, present, signed };
   })();
+
+  const vs = fascicolo.workflow ? visibleStatusForRole(fascicolo, user?.role as any) : null;
 
   return (
     <div className="space-y-6">
@@ -78,13 +83,42 @@ export function FascicoloDettaglioPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Badge className="border-0" variant={statoVariant(fascicolo.stato) as any}>
-            {fascicolo.stato}
-          </Badge>
+          {vs ? (
+            <Badge className="border-0" variant={vs.variant as any}>
+              {vs.label}
+            </Badge>
+          ) : (
+            <Badge className="border-0" variant={statoVariant(fascicolo.stato) as any}>
+              {fascicolo.stato}
+            </Badge>
+          )}
           <Badge variant="outline">{formatEuro(fascicolo.valore)}</Badge>
           <Badge variant="outline">Assegnato: {fascicolo.assegnatario}</Badge>
         </div>
       </div>
+
+      {fascicolo.workflow && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Stati BackOffice</CardTitle>
+            <CardDescription>
+              Dettaglio dei rami indipendenti (anagrafico, finanziario, permuta)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {(() => {
+              const s = branchStatusBadges(fascicolo);
+              return (
+                <>
+                  <Badge variant={s.bo.variant as any}>Anagrafico: {s.bo.label}</Badge>
+                  <Badge variant={s.bof.variant as any}>Finanziario: {s.bof.label}</Badge>
+                  <Badge variant={s.bou.variant as any}>Permuta: {s.bou.label}</Badge>
+                </>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

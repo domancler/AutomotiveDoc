@@ -2,7 +2,7 @@ import * as React from "react";
 import type { Fascicolo } from "@/mock/fascicoli";
 import type { FascicoloContext } from "@/auth/can";
 import { can } from "@/auth/can";
-import { States } from "@/workflow/states";
+import { States, type StateCode } from "@/workflow/states";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
 
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { dispatchFascicoloAction } from "@/mock/runtimeFascicoliStore";
 
 /** -----------------------
  *  Stato: mapping temporaneo
@@ -44,10 +45,40 @@ function hasProvaPagamentoDoc(f: Fascicolo) {
   return f.documenti?.some((d) => d.tipo === "Prova pagamento") ?? false;
 }
 
-function buildCtx(f: Fascicolo): FascicoloContext {
+function firstReviewBranchState(f: Fascicolo): StateCode | undefined {
+  const bo = f.workflow?.bo;
+  const bof = f.workflow?.bof;
+  const bou = f.workflow?.bou;
+  const candidates = [bo, bof, bou].filter(Boolean) as StateCode[];
+  return candidates.find(
+    (s) =>
+      s === States.DA_RIVEDERE_BO ||
+      s === States.DA_RIVEDERE_BOF ||
+      s === States.DA_RIVEDERE_BOU
+  );
+}
+
+function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
   const anyF: any = f;
 
-  const state = (anyF.workflowState ?? mapLegacyStatoToState(f.stato)) as any;
+  const overall = (anyF.workflow?.overall ?? anyF.workflowState ?? mapLegacyStatoToState(f.stato)) as StateCode;
+  const bo = (anyF.workflow?.bo ?? overall) as StateCode;
+  const bof = (anyF.workflow?.bof ?? overall) as StateCode;
+  const bou = (anyF.workflow?.bou ?? overall) as StateCode;
+
+  // Stato per le regole (can): dipende dal ruolo che sta agendo
+  const state: StateCode | undefined = (() => {
+    if (role === "BO") return bo;
+    if (role === "BOF") return bof;
+    if (role === "BOU") return bou;
+
+    if (role === "COMMERCIALE") {
+      const review = firstReviewBranchState(f);
+      return review ?? overall;
+    }
+
+    return overall;
+  })();
 
   return {
     state,
@@ -190,7 +221,7 @@ function ActionCard({
           </div>
         </div>
 
-        {!enabled && <Badge variant="destructive">Non disponibile</Badge>}
+        {!enabled && <Badge variant="danger">Non disponibile</Badge>}
       </div>
 
       {!enabled && disabledReason && (
@@ -214,37 +245,30 @@ function ActionCard({
   );
 }
 
-function RolePanel(props: {
-  title?: string;
-  hint?: string;
+function RolePanel({
+                     title,
+                     hint,
+                     children,
+                   }: {
+  title: string;
+  hint: string;
   children: React.ReactNode;
 }) {
-  const {
-    title,
-    hint,
-    children,
-  } = props;
-
   return (
     <div className="rounded-2xl border bg-background">
-      {
-        (title || hint) && (
-          <div className="p-4">
-            <div className="text-lg font-semibold">{title}</div>
-            <div className="text-sm text-muted-foreground">{hint}</div>
-          </div>
-        )
-      }
-      <div className={cn("p-4", (title || hint) ? "border-t" : "")}>{children}</div>
+      <div className="p-4">
+        <div className="text-lg font-semibold">{title}</div>
+        <div className="text-sm text-muted-foreground">{hint}</div>
+      </div>
+      <div className="border-t p-4">{children}</div>
     </div>
   );
 }
 
 export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
   const { user } = useAuth();
-  const ctx = React.useMemo(() => buildCtx(fascicolo), [fascicolo]);
-
   const role = user?.role as Role | undefined;
+  const ctx = React.useMemo(() => buildCtx(fascicolo, role), [fascicolo, role]);
   const state = ctx.state;
 
   const allowed = (action: Action) =>
@@ -252,8 +276,16 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
   const disabledReason = (action: Action) => reasonByState(action, state);
 
-  const act = (label: string) => {
-    alert(`Azione (mock): ${label}`);
+  const doAction = (action: Action, label: string) => {
+    dispatchFascicoloAction({
+      fascicoloId: fascicolo.id,
+      action,
+      actor: { role, name: user?.name || user?.username || user?.id },
+    });
+
+    // feedback leggero (rimane tutto runtime)
+    // eslint-disable-next-line no-alert
+    alert(`Azione eseguita (runtime): ${label}`);
   };
 
   if (!user) {
@@ -272,8 +304,8 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {/* ✅ COMMERCIALE: vede SOLO queste */}
       {role === "COMMERCIALE" && (
         <RolePanel
-          // title="Venditore"
-          // hint="Compilazione e invio fascicolo, proposta riapertura dopo approvazione."
+          title="Venditore"
+          hint="Compilazione e invio fascicolo, proposta riapertura dopo approvazione."
         >
           <div className="grid gap-3 md:grid-cols-2">
             <ActionCard
@@ -281,7 +313,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Invia il fascicolo alla fase di validazione."
               icon={<Send className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.SEND_AS_COMM")}
-              onClick={() => act("Invia fascicolo (Venditore)")}
+              onClick={() => doAction("FASCICOLO.SEND_AS_COMM", "Invia fascicolo")}
               disabledReason={disabledReason("FASCICOLO.SEND_AS_COMM")}
             />
             <ActionCard
@@ -290,7 +322,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               icon={<RotateCcw className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("FASCICOLO.REQUEST_REOPEN")}
-              onClick={() => act("Proponi riapertura")}
+              onClick={() => doAction("FASCICOLO.REQUEST_REOPEN", "Proponi riapertura")}
               disabledReason={disabledReason("FASCICOLO.REQUEST_REOPEN")}
             />
           </div>
@@ -309,7 +341,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Inizia le verifiche anagrafiche."
               icon={<Hand className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.TAKE_BO")}
-              onClick={() => act("Prendi in carico BO")}
+              onClick={() => doAction("FASCICOLO.TAKE_BO", "Prendi in carico (BO Anagrafico)")}
               disabledReason={disabledReason("FASCICOLO.TAKE_BO")}
             />
             <ActionCard
@@ -318,7 +350,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("FASCICOLO.REQUEST_REVIEW_BO")}
-              onClick={() => act("Richiedi integrazioni BO")}
+              onClick={() => doAction("FASCICOLO.REQUEST_REVIEW_BO", "Richiedi integrazioni (BO Anagrafico)")}
               disabledReason={disabledReason("FASCICOLO.REQUEST_REVIEW_BO")}
             />
             <ActionCard
@@ -326,7 +358,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Conferma esito positivo e completa la sezione."
               icon={<CheckCircle2 className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.VALIDATE_BO")}
-              onClick={() => act("Valida BO")}
+              onClick={() => doAction("FASCICOLO.VALIDATE_BO", "Valida (BO Anagrafico)")}
               disabledReason={disabledReason("FASCICOLO.VALIDATE_BO")}
             />
             <div className="md:col-span-2 lg:col-span-3">
@@ -336,7 +368,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
                 icon={<RotateCcw className="h-5 w-5" />}
                 tone="danger"
                 enabled={allowed("FASCICOLO.REOPEN")}
-                onClick={() => act("Riapri fascicolo")}
+                onClick={() => doAction("FASCICOLO.REOPEN", "Riapri fascicolo")}
                 disabledReason={disabledReason("FASCICOLO.REOPEN")}
               />
             </div>
@@ -356,16 +388,16 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Inizia verifiche finanziarie."
               icon={<Hand className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.TAKE_BOF")}
-              onClick={() => act("Prendi in carico BOF")}
+              onClick={() => doAction("FASCICOLO.TAKE_BOF", "Prendi in carico (BO Finanziario)")}
               disabledReason={disabledReason("FASCICOLO.TAKE_BOF")}
             />
             <ActionCard
               title="Richiedi integrazioni"
-                subtitle="Invia al Venditore per integrazioni finanziarie."
+              subtitle="Invia al Venditore per integrazioni finanziarie."
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("FASCICOLO.REQUEST_REVIEW_BOF")}
-              onClick={() => act("Richiedi integrazioni BOF")}
+              onClick={() => doAction("FASCICOLO.REQUEST_REVIEW_BOF", "Richiedi integrazioni (BO Finanziario)")}
               disabledReason={disabledReason("FASCICOLO.REQUEST_REVIEW_BOF")}
             />
             <ActionCard
@@ -373,7 +405,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Completa la sezione finanziaria."
               icon={<CheckCircle2 className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.VALIDATE_BOF")}
-              onClick={() => act("Valida BOF")}
+              onClick={() => doAction("FASCICOLO.VALIDATE_BOF", "Valida (BO Finanziario)")}
               disabledReason={disabledReason("FASCICOLO.VALIDATE_BOF")}
             />
             <div className="md:col-span-2 lg:col-span-3">
@@ -383,7 +415,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
                 icon={<RotateCcw className="h-5 w-5" />}
                 tone="danger"
                 enabled={allowed("FASCICOLO.REOPEN")}
-                onClick={() => act("Riapri fascicolo")}
+                onClick={() => doAction("FASCICOLO.REOPEN", "Riapri fascicolo")}
                 disabledReason={disabledReason("FASCICOLO.REOPEN")}
               />
             </div>
@@ -403,16 +435,16 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Inizia verifiche permuta/usato."
               icon={<Hand className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.TAKE_BOU")}
-              onClick={() => act("Prendi in carico BOU")}
+              onClick={() => doAction("FASCICOLO.TAKE_BOU", "Prendi in carico (BO Permuta)")}
               disabledReason={disabledReason("FASCICOLO.TAKE_BOU")}
             />
             <ActionCard
               title="Richiedi integrazioni"
-                subtitle="Invia al Venditore per integrazioni permuta."
+              subtitle="Invia al Venditore per integrazioni permuta."
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("FASCICOLO.REQUEST_REVIEW_BOU")}
-              onClick={() => act("Richiedi integrazioni BOU")}
+              onClick={() => doAction("FASCICOLO.REQUEST_REVIEW_BOU", "Richiedi integrazioni (BO Permuta)")}
               disabledReason={disabledReason("FASCICOLO.REQUEST_REVIEW_BOU")}
             />
             <ActionCard
@@ -420,7 +452,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Completa la sezione permuta/usato."
               icon={<CheckCircle2 className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.VALIDATE_BOU")}
-              onClick={() => act("Valida BOU")}
+              onClick={() => doAction("FASCICOLO.VALIDATE_BOU", "Valida (BO Permuta)")}
               disabledReason={disabledReason("FASCICOLO.VALIDATE_BOU")}
             />
             <div className="md:col-span-2 lg:col-span-3">
@@ -430,7 +462,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
                 icon={<RotateCcw className="h-5 w-5" />}
                 tone="danger"
                 enabled={allowed("FASCICOLO.REOPEN")}
-                onClick={() => act("Riapri fascicolo")}
+                onClick={() => doAction("FASCICOLO.REOPEN", "Riapri fascicolo")}
                 disabledReason={disabledReason("FASCICOLO.REOPEN")}
               />
             </div>
@@ -442,7 +474,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {role === "CONSEGNATORE" && (
         <RolePanel
           title="Operatore consegna"
-          hint="Operazioni post-approvazione: carica documenti consegna e invia al controllo consegna."
+          hint="Operazioni post-approvazione: carica documenti consegna e invia a controllo."
         >
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
@@ -450,7 +482,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Presa in carico su Approvato (senza cambio stato)."
               icon={<UserCheck className="h-5 w-5" />}
               enabled={allowed("DELIVERY.TAKE")}
-              onClick={() => act("Prendi in carico Operatore consegna")}
+              onClick={() => doAction("DELIVERY.TAKE", "Prendi in carico (Consegna)")}
               disabledReason={disabledReason("DELIVERY.TAKE")}
             />
             <ActionCard
@@ -458,15 +490,15 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Upload documenti richiesti per consegna."
               icon={<FileUp className="h-5 w-5" />}
               enabled={allowed("DELIVERY.UPLOAD")}
-              onClick={() => act("Carica documenti consegna")}
+              onClick={() => doAction("DELIVERY.UPLOAD", "Carica documenti consegna")}
               disabledReason={disabledReason("DELIVERY.UPLOAD")}
             />
             <ActionCard
-              title="Invia a Controllo consegna"
-              subtitle="Invia al controllo consegna per le verifiche."
+              title="Invia a controllo consegna"
+              subtitle="Invia al Controllo consegna."
               icon={<ArrowRightCircle className="h-5 w-5" />}
               enabled={allowed("DELIVERY.SEND_TO_VRC")}
-              onClick={() => act("Invia a VRC")}
+              onClick={() => doAction("DELIVERY.SEND_TO_VRC", "Invia a Controllo consegna")}
               disabledReason={disabledReason("DELIVERY.SEND_TO_VRC")}
             />
           </div>
@@ -477,7 +509,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {role === "VRC" && (
         <RolePanel
           title="Controllo consegna"
-          hint="Prendi in carico, richiedi integrazioni all'operatore consegna e valida la consegna."
+          hint="Prendi in carico, richiedi integrazioni all'Operatore consegna e valida la consegna."
         >
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
@@ -485,16 +517,16 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Avvia verifiche consegna."
               icon={<Hand className="h-5 w-5" />}
               enabled={allowed("VRC.TAKE")}
-              onClick={() => act("Prendi in carico VRC")}
+              onClick={() => doAction("VRC.TAKE", "Prendi in carico (Controllo consegna)")}
               disabledReason={disabledReason("VRC.TAKE")}
             />
             <ActionCard
               title="Richiedi integrazioni"
-              subtitle="Rimanda all'operatore consegna per documenti mancanti."
+              subtitle="Rimanda all'Operatore consegna per documenti mancanti."
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("VRC.REQUEST_FIX")}
-              onClick={() => act("VRC richiede integrazioni")}
+              onClick={() => doAction("VRC.REQUEST_FIX", "Richiedi integrazioni (Controllo consegna)")}
               disabledReason={disabledReason("VRC.REQUEST_FIX")}
             />
             <ActionCard
@@ -502,7 +534,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Chiude il processo (→ Completato)."
               icon={<CheckCircle2 className="h-5 w-5" />}
               enabled={allowed("VRC.VALIDATE")}
-              onClick={() => act("Valida consegna")}
+              onClick={() => doAction("VRC.VALIDATE", "Valida consegna")}
               disabledReason={disabledReason("VRC.VALIDATE")}
             />
           </div>
