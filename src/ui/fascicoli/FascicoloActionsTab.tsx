@@ -66,25 +66,29 @@ function niceStateLabel(state?: string) {
     case States.DA_VALIDARE_BO:
     case States.DA_VALIDARE_BOF:
     case States.DA_VALIDARE_BOU:
-      return "Da validare";
+      return "In attesa di presa in carico";
     case States.VERIFICHE_BO:
     case States.VERIFICHE_BOF:
     case States.VERIFICHE_BOU:
-      return "Verifiche in corso";
+      return "In verifica";
     case States.DA_RIVEDERE_BO:
     case States.DA_RIVEDERE_BOF:
     case States.DA_RIVEDERE_BOU:
-      return "Da rivedere";
+      return "Da controllare";
+    case States.VALIDATO_BO:
+    case States.VALIDATO_BOF:
+    case States.VALIDATO_BOU:
+      return "Validato";
     case States.APPROVATO:
       return "Approvato";
     case States.DA_VALIDARE_CONSEGNA:
-      return "Da validare (Consegna)";
+      return "Consegna - in attesa di verifica";
     case States.VERIFICHE_CONSEGNA:
-      return "Verifiche (Consegna)";
+      return "Consegna - in verifica";
     case States.DA_RIVEDERE_VRC:
-      return "Da rivedere (VRC)";
+      return "Consegna - da controllare";
     case States.CONSEGNATO:
-      return "Consegnato";
+      return "Completato";
     default:
       return state ?? "—";
   }
@@ -262,7 +266,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {/* ✅ COMMERCIALE: vede SOLO queste */}
       {role === "COMMERCIALE" && (
         <RolePanel
-          title="Commerciale"
+          title="Venditore"
           hint="Compilazione e invio fascicolo, proposta riapertura dopo approvazione."
         >
           <div className="grid gap-3 md:grid-cols-2">
@@ -271,7 +275,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Invia il fascicolo alla fase di validazione."
               icon={<Send className="h-5 w-5" />}
               enabled={allowed("FASCICOLO.SEND_AS_COMM")}
-              onClick={() => act("Invia fascicolo (Commerciale)")}
+              onClick={() => act("Invia fascicolo (Venditore)")}
               disabledReason={disabledReason("FASCICOLO.SEND_AS_COMM")}
             />
             <ActionCard
@@ -290,7 +294,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {/* ✅ BO */}
       {role === "BO" && (
         <RolePanel
-          title="BackOffice (Anagrafica)"
+          title="BackOffice Anagrafico"
           hint="Presa in carico, richiesta integrazioni, validazione, riapertura."
         >
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -304,7 +308,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             />
             <ActionCard
               title="Richiedi integrazioni"
-              subtitle="Invia al Commerciale per documenti mancanti/non conformi."
+                subtitle="Invia al Venditore per documenti mancanti/non conformi."
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("FASCICOLO.REQUEST_REVIEW_BO")}
@@ -351,7 +355,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             />
             <ActionCard
               title="Richiedi integrazioni"
-              subtitle="Invia al Commerciale per integrazioni finanziarie."
+                subtitle="Invia al Venditore per integrazioni finanziarie."
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("FASCICOLO.REQUEST_REVIEW_BOF")}
@@ -384,7 +388,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {/* ✅ BOU */}
       {role === "BOU" && (
         <RolePanel
-          title="BackOffice Usato"
+          title="BackOffice Permuta"
           hint="Disponibile solo se la sezione permuta/usato è attiva nel fascicolo."
         >
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -398,7 +402,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             />
             <ActionCard
               title="Richiedi integrazioni"
-              subtitle="Invia al Commerciale per integrazioni permuta/usato."
+                subtitle="Invia al Venditore per integrazioni permuta."
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("FASCICOLO.REQUEST_REVIEW_BOU")}
@@ -431,8 +435,8 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {/* ✅ CONSEGNATORE */}
       {role === "CONSEGNATORE" && (
         <RolePanel
-          title="Consegnatore"
-          hint="Operazioni post-approvazione: carica documenti consegna e invia a VRC."
+          title="Operatore consegna"
+          hint="Operazioni post-approvazione: carica documenti consegna e invia al controllo consegna."
         >
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
@@ -440,7 +444,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               subtitle="Presa in carico su Approvato (senza cambio stato)."
               icon={<UserCheck className="h-5 w-5" />}
               enabled={allowed("DELIVERY.TAKE")}
-              onClick={() => act("Prendi in carico Consegnatore")}
+              onClick={() => act("Prendi in carico Operatore consegna")}
               disabledReason={disabledReason("DELIVERY.TAKE")}
             />
             <ActionCard
@@ -452,8 +456,8 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               disabledReason={disabledReason("DELIVERY.UPLOAD")}
             />
             <ActionCard
-              title="Invia a VRC"
-              subtitle="Invia al Verificatore Consegna."
+              title="Invia a Controllo consegna"
+              subtitle="Invia al controllo consegna per le verifiche."
               icon={<ArrowRightCircle className="h-5 w-5" />}
               enabled={allowed("DELIVERY.SEND_TO_VRC")}
               onClick={() => act("Invia a VRC")}
@@ -466,8 +470,8 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {/* ✅ VRC */}
       {role === "VRC" && (
         <RolePanel
-          title="Verificatore Consegna (VRC)"
-          hint="Prendi in carico, richiedi integrazioni al Consegnatore e valida la consegna."
+          title="Controllo consegna"
+          hint="Prendi in carico, richiedi integrazioni all'operatore consegna e valida la consegna."
         >
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
@@ -480,7 +484,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             />
             <ActionCard
               title="Richiedi integrazioni"
-              subtitle="Rimanda al Consegnatore per documenti mancanti."
+              subtitle="Rimanda all'operatore consegna per documenti mancanti."
               icon={<AlertTriangle className="h-5 w-5" />}
               tone="outline"
               enabled={allowed("VRC.REQUEST_FIX")}
@@ -489,7 +493,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             />
             <ActionCard
               title="Valida consegna"
-              subtitle="Chiude il processo (→ Consegnato)."
+              subtitle="Chiude il processo (→ Completato)."
               icon={<CheckCircle2 className="h-5 w-5" />}
               enabled={allowed("VRC.VALIDATE")}
               onClick={() => act("Valida consegna")}

@@ -7,6 +7,31 @@ import { useOnClickOutside } from "@/lib/useOnClickOutside";
 // <-- se il tuo auth hook ha un path/nome diverso, cambia QUI
 import { useAuth } from "@/auth/AuthProvider";
 
+function roleLabel(role: string) {
+  switch (role) {
+    case "ADMIN":
+      return "Admin";
+    case "AMMINISTRATIVO":
+      return "Amministrativo";
+    case "RESPONSABILE":
+      return "Supervisore";
+    case "COMMERCIALE":
+      return "Venditore";
+    case "BO":
+      return "BackOffice Anagrafico";
+    case "BOF":
+      return "BackOffice Finanziario";
+    case "BOU":
+      return "BackOffice Permuta";
+    case "CONSEGNATORE":
+      return "Operatore consegna";
+    case "VRC":
+      return "Controllo consegna";
+    default:
+      return role;
+  }
+}
+
 function initials(name?: string) {
   if (!name) return "U";
   const parts = name.trim().split(/\s+/).slice(0, 2);
@@ -32,7 +57,8 @@ export function UserMenu() {
 
   const displayName =
     user?.name || user?.username || user?.email || user?.id || "Utente";
-  const role = user?.role || user?.ruolo || "utente";
+  const rawRole = user?.role || user?.ruolo || "utente";
+  const role = roleLabel(String(rawRole));
 
   return (
     <div ref={wrapRef} className="relative">
