@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { fascicoli } from "@/mock/fascicoli";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card";
 import { Input } from "@/ui/components/input";
-import { FascicoliTable } from "@/ui/fascicoli/FascicoliTable";
+import { FascicoliCards } from "@/ui/fascicoli/FascicoliCards";
 import { FascicoliFilters, applyFascicoliFilters, createEmptyFilters } from "@/ui/fascicoli/FascicoliFilters";
 
 export function FascicoliInCorsoPage() {
@@ -50,7 +50,7 @@ export function FascicoliInCorsoPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <FascicoliTable rows={rows} />
+          <FascicoliCards rows={rows} />
         </CardContent>
       </Card>
     </div>

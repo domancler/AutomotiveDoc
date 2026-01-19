@@ -9,8 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Progress } from "@/ui/components/progress";
 import { cn, formatEuro } from "@/lib/utils";
 import { statoVariant } from "@/ui/fascicoli/status";
-import { FileUp, CheckCircle2, Clock3, XCircle } from "lucide-react";
+import { FileUp, CheckCircle2, Clock3, XCircle, Car, User, CalendarDays } from "lucide-react";
 import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
+
+function formatDateIT(iso: string) {
+  try {
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
 
 export function FascicoloDettaglioPage() {
   const { id } = useParams();
@@ -42,9 +54,27 @@ export function FascicoloDettaglioPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             Fascicolo {fascicolo.numero}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {fascicolo.cliente.nome} · {fascicolo.veicolo.marca} {fascicolo.veicolo.modello}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <Car className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Auto:</span>
+              <span className="font-medium text-foreground">
+                {fascicolo.veicolo.marca} {fascicolo.veicolo.modello}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Cliente:</span>
+              <span className="font-medium text-foreground">{fascicolo.cliente.nome}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Data:</span>
+              <span className="font-medium text-foreground">{formatDateIT(fascicolo.createdAt)}</span>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

@@ -214,22 +214,28 @@ function ActionCard({
   );
 }
 
-function RolePanel({
-                     title,
-                     hint,
-                     children,
-                   }: {
-  title: string;
-  hint: string;
+function RolePanel(props: {
+  title?: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
+  const {
+    title,
+    hint,
+    children,
+  } = props;
+
   return (
     <div className="rounded-2xl border bg-background">
-      <div className="p-4">
-        <div className="text-lg font-semibold">{title}</div>
-        <div className="text-sm text-muted-foreground">{hint}</div>
-      </div>
-      <div className="border-t p-4">{children}</div>
+      {
+        (title || hint) && (
+          <div className="p-4">
+            <div className="text-lg font-semibold">{title}</div>
+            <div className="text-sm text-muted-foreground">{hint}</div>
+          </div>
+        )
+      }
+      <div className={cn("p-4", (title || hint) ? "border-t" : "")}>{children}</div>
     </div>
   );
 }
@@ -266,8 +272,8 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {/* ✅ COMMERCIALE: vede SOLO queste */}
       {role === "COMMERCIALE" && (
         <RolePanel
-          title="Venditore"
-          hint="Compilazione e invio fascicolo, proposta riapertura dopo approvazione."
+          // title="Venditore"
+          // hint="Compilazione e invio fascicolo, proposta riapertura dopo approvazione."
         >
           <div className="grid gap-3 md:grid-cols-2">
             <ActionCard
