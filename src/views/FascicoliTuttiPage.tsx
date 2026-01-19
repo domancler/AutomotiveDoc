@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { useFascicoli } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card";
 import { Input } from "@/ui/components/input";
-import { FascicoliTable } from "@/ui/fascicoli/FascicoliTable";
-import { FascicoliFilters, applyFascicoliFilters, createEmptyFilters } from "@/ui/fascicoli/FascicoliFilters";
+import { applyFascicoliFilters, createEmptyFilters, FascicoliFilters } from "@/ui/fascicoli/FascicoliFilters";
 import { FascicoliCards } from "@/ui/fascicoli/FascicoliCards";
 
 export function FascicoliTuttiPage() {
