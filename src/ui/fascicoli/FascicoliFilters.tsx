@@ -1,7 +1,9 @@
 import * as React from "react";
 import type { Fascicolo } from "@/mock/fascicoli";
 import { Button } from "@/ui/components/button";
+import { Input } from "@/ui/components/input";
 import { cn } from "@/lib/utils";
+import { Calendar as CalendarIcon, X } from "lucide-react";
 
 export type DocFilter =
   | "missingRequired" // almeno un documento richiesto mancante
@@ -13,6 +15,10 @@ export type FascicoliFilterState = {
   assegnatari: Set<string>;
   marche: Set<string>;
   doc: Set<DocFilter>;
+  /** YYYY-MM-DD */
+  createdFrom?: string;
+  /** YYYY-MM-DD */
+  createdTo?: string;
 };
 
 export function createEmptyFilters(): FascicoliFilterState {
@@ -21,11 +27,28 @@ export function createEmptyFilters(): FascicoliFilterState {
     assegnatari: new Set(),
     marche: new Set(),
     doc: new Set(),
+    createdFrom: undefined,
+    createdTo: undefined,
   };
 }
 
 export function countActive(filters: FascicoliFilterState) {
-  return filters.stati.size + filters.assegnatari.size + filters.marche.size + filters.doc.size;
+  return (
+    filters.stati.size +
+    filters.assegnatari.size +
+    filters.marche.size +
+    filters.doc.size +
+    (filters.createdFrom ? 1 : 0) +
+    (filters.createdTo ? 1 : 0)
+  );
+}
+
+function toStartOfDayMs(yyyyMmDd: string) {
+  return new Date(`${yyyyMmDd}T00:00:00.000`).getTime();
+}
+
+function toEndOfDayMs(yyyyMmDd: string) {
+  return new Date(`${yyyyMmDd}T23:59:59.999`).getTime();
 }
 
 function toggleSetValue<T>(set: Set<T>, value: T) {
@@ -78,6 +101,19 @@ export function applyFascicoliFilters(rows: Fascicolo[], filters: FascicoliFilte
     if (filters.assegnatari.size && !filters.assegnatari.has(f.assegnatario)) return false;
     if (filters.marche.size && !filters.marche.has(f.veicolo.marca)) return false;
     if (!docMatchForFascicolo(f, filters.doc)) return false;
+
+    if (filters.createdFrom) {
+      const fromMs = toStartOfDayMs(filters.createdFrom);
+      const createdMs = new Date(f.createdAt).getTime();
+      if (createdMs < fromMs) return false;
+    }
+
+    if (filters.createdTo) {
+      const toMs = toEndOfDayMs(filters.createdTo);
+      const createdMs = new Date(f.createdAt).getTime();
+      if (createdMs > toMs) return false;
+    }
+
     return true;
   });
 }
@@ -121,16 +157,84 @@ function FilterBlock({
   );
 }
 
+function DateInput({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  onClear,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  min?: string;
+  max?: string;
+  onClear: () => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="relative">
+        <CalendarIcon className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="date"
+          value={value}
+          min={min}
+          max={max}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn("pl-8", value && "pr-8")}
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label={`Pulisci data (${label})`}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function addDays(yyyyMmDd: string, days: number) {
+  const d = new Date(`${yyyyMmDd}T00:00:00.000`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function todayYmd() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function startOfMonthYmd(ymd: string) {
+  const d = new Date(`${ymd}T00:00:00.000`);
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+}
+
+function endOfMonthYmd(ymd: string) {
+  const d = new Date(`${ymd}T00:00:00.000`);
+  d.setMonth(d.getMonth() + 1);
+  d.setDate(0);
+  return d.toISOString().slice(0, 10);
+}
+
 export function FascicoliFilters({
   rows,
   value,
   onChange,
   defaultOpen = false,
+  showAssegnatario = true,
 }: {
   rows: Fascicolo[];
   value: FascicoliFilterState;
   onChange: (next: FascicoliFilterState) => void;
   defaultOpen?: boolean;
+  showAssegnatario?: boolean;
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
 
@@ -139,6 +243,63 @@ export function FascicoliFilters({
   const marche = React.useMemo(() => uniqueSorted(rows.map((r) => r.veicolo.marca)), [rows]);
 
   const activeCount = countActive(value);
+
+  const setDateRange = React.useCallback(
+    (nextFrom?: string, nextTo?: string) => {
+      // "intelligente": se l'utente inverte il range, lo aggiustiamo automaticamente.
+      if (nextFrom && nextTo && nextTo < nextFrom) {
+        const tmp = nextFrom;
+        nextFrom = nextTo;
+        nextTo = tmp;
+      }
+
+      onChange({
+        ...value,
+        createdFrom: nextFrom || undefined,
+        createdTo: nextTo || undefined,
+      });
+    },
+    [onChange, value]
+  );
+
+  const handleFromChange = React.useCallback(
+    (next: string) => {
+      const nextFrom = next || undefined;
+      // se ho gia' un "to" e l'utente sceglie un "from" dopo, spostiamo il "to".
+      if (nextFrom && value.createdTo && value.createdTo < nextFrom) {
+        setDateRange(nextFrom, nextFrom);
+        return;
+      }
+      setDateRange(nextFrom, value.createdTo);
+    },
+    [setDateRange, value.createdTo]
+  );
+
+  const handleToChange = React.useCallback(
+    (next: string) => {
+      const nextTo = next || undefined;
+      // se ho gia' un "from" e l'utente sceglie un "to" prima, spostiamo il "from".
+      if (nextTo && value.createdFrom && nextTo < value.createdFrom) {
+        setDateRange(nextTo, nextTo);
+        return;
+      }
+      setDateRange(value.createdFrom, nextTo);
+    },
+    [setDateRange, value.createdFrom]
+  );
+
+  const applyPreset = React.useCallback(
+    (preset: "today" | "last7" | "last30" | "thisMonth") => {
+      const t = todayYmd();
+      if (preset === "today") return setDateRange(t, t);
+      if (preset === "last7") return setDateRange(addDays(t, -6), t);
+      if (preset === "last30") return setDateRange(addDays(t, -29), t);
+
+      // thisMonth
+      return setDateRange(startOfMonthYmd(t), endOfMonthYmd(t));
+    },
+    [setDateRange]
+  );
 
   return (
     <div className="rounded-lg border bg-card text-card-foreground shadow-soft">
@@ -180,19 +341,21 @@ export function FascicoliFilters({
               ))}
             </FilterBlock>
 
-            <FilterBlock title="Assegnatario">
-              {assegnatari.map((a) => (
-                <Pill
-                  key={a}
-                  active={value.assegnatari.has(a)}
-                  onClick={() =>
-                    onChange({ ...value, assegnatari: toggleSetValue(value.assegnatari, a) })
-                  }
-                >
-                  {a}
-                </Pill>
-              ))}
-            </FilterBlock>
+            {showAssegnatario && (
+              <FilterBlock title="Assegnatario">
+                {assegnatari.map((a) => (
+                  <Pill
+                    key={a}
+                    active={value.assegnatari.has(a)}
+                    onClick={() =>
+                      onChange({ ...value, assegnatari: toggleSetValue(value.assegnatari, a) })
+                    }
+                  >
+                    {a}
+                  </Pill>
+                ))}
+              </FilterBlock>
+            )}
 
             <FilterBlock title="Marca">
               {marche.map((m) => (
@@ -204,6 +367,65 @@ export function FascicoliFilters({
                   {m}
                 </Pill>
               ))}
+            </FilterBlock>
+
+            <FilterBlock title="Data creazione">
+              <div className="flex w-full flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-xs text-muted-foreground">Preset:</div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("today")}
+                    className="rounded-full">
+                    Oggi
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("last7")}
+                    className="rounded-full">
+                    Ultimi 7gg
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("last30")}
+                    className="rounded-full">
+                    Ultimi 30gg
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("thisMonth")}
+                    className="rounded-full">
+                    Questo mese
+                  </Button>
+                  {(value.createdFrom || value.createdTo) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDateRange(undefined, undefined)}
+                      className="ml-auto"
+                    >
+                      Pulisci
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid gap-2 md:grid-cols-2">
+                  <DateInput
+                    label="Da"
+                    value={value.createdFrom ?? ""}
+                    max={value.createdTo}
+                    onClear={() => setDateRange(undefined, value.createdTo)}
+                    onChange={handleFromChange}
+                  />
+
+                  <DateInput
+                    label="A"
+                    value={value.createdTo ?? ""}
+                    min={value.createdFrom}
+                    onClear={() => setDateRange(value.createdFrom, undefined)}
+                    onChange={handleToChange}
+                  />
+                </div>
+
+                {(value.createdFrom || value.createdTo) && (
+                  <div className="text-xs text-muted-foreground">
+                    Suggerimento: se selezioni una data finale precedente alla iniziale, il range si aggiusta da solo.
+                  </div>
+                )}
+              </div>
             </FilterBlock>
 
             <FilterBlock title="Documenti" className="md:col-span-2 xl:col-span-3">

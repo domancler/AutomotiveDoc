@@ -15,7 +15,15 @@ export function Topbar() {
     <header className="border-b bg-background">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
         <div className="flex items-center gap-3">
-          <span className="font-semibold">AutomotiveDoc</span>
+          <Link to="/dashboard" className="flex items-center gap-2">
+            <img
+              src="/assets/favicon-32x32.png"
+              alt="AutomotiveDoc"
+              className="h-6 w-6"
+              loading="eager"
+            />
+            <span className="font-semibold">AutomotiveDoc</span>
+          </Link>
 
           {/* separatore */}
           <span className="h-6 w-px bg-border" />

@@ -73,7 +73,7 @@ const seedFascicoli: Fascicolo[] = [
     createdAt: isoDaysAgo(10),
     updatedAt: isoDaysAgo(1),
     valore: 21990,
-    assegnatario: "D. Ancler",
+    assegnatario: "Venditore",
     progress: 45,
     documenti: [
       { id: "D1", tipo: "Contratto di vendita", richiesto: true, presente: true, firmato: false, updatedAt: isoDaysAgo(1) },
@@ -84,8 +84,8 @@ const seedFascicoli: Fascicolo[] = [
     ],
     timeline: [
       { at: isoDaysAgo(10), actor: "Sistema", event: "Fascicolo creato" },
-      { at: isoDaysAgo(3), actor: "D. Ancler", event: "Caricata informativa privacy firmata" },
-      { at: isoDaysAgo(1), actor: "D. Ancler", event: "Caricato contratto (in attesa firma)" },
+      { at: isoDaysAgo(3), actor: "Venditore", event: "Caricata informativa privacy firmata" },
+      { at: isoDaysAgo(1), actor: "Venditore", event: "Caricato contratto (in attesa firma)" },
     ],
     note: [{ id: "N1", at: isoDaysAgo(2), author: "Backoffice 1", text: "Manca documento identità in fronte/retro." }],
   },
@@ -141,7 +141,7 @@ const seedFascicoli: Fascicolo[] = [
     createdAt: isoDaysAgo(45),
     updatedAt: isoDaysAgo(20),
     valore: 16450,
-    assegnatario: "D. Ancler",
+    assegnatario: "Venditore",
     progress: 100,
     documenti: [
       { id: "D1", tipo: "Contratto di vendita", richiesto: true, presente: true, firmato: true, updatedAt: isoDaysAgo(24) },
@@ -152,7 +152,7 @@ const seedFascicoli: Fascicolo[] = [
     ],
     timeline: [
       { at: isoDaysAgo(45), actor: "Sistema", event: "Fascicolo creato" },
-      { at: isoDaysAgo(30), actor: "D. Ancler", event: "Caricati documenti cliente" },
+      { at: isoDaysAgo(30), actor: "Venditore", event: "Caricati documenti cliente" },
       { at: isoDaysAgo(24), actor: "Cliente", event: "Firmato contratto" },
       { at: isoDaysAgo(20), actor: "Sistema", event: "Fascicolo completato" },
     ],

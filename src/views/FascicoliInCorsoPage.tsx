@@ -23,8 +23,18 @@ export function FascicoliInCorsoPage() {
     if (!query) return filtered;
 
     // AND: la search si applica in AND ai filtri
+    // La search *non* include campi già coperti da filtri dedicati (es. stato, assegnatario, marca).
     return filtered.filter((f) =>
-      [f.id, f.numero, f.cliente.nome, f.veicolo.marca, f.veicolo.modello, f.veicolo.targa, f.assegnatario, f.stato]
+      [
+        f.id,
+        f.numero,
+        f.cliente.nome,
+        f.cliente.email,
+        f.cliente.telefono,
+        f.veicolo.modello,
+        f.veicolo.targa,
+        f.veicolo.vin,
+      ]
         .filter(Boolean)
         .some((x) => String(x).toLowerCase().includes(query)),
     );
@@ -42,7 +52,13 @@ export function FascicoliInCorsoPage() {
         </div>
       </div>
 
-      <FascicoliFilters rows={base} value={filters} onChange={setFilters} defaultOpen={false} />
+      <FascicoliFilters
+        rows={base}
+        value={filters}
+        onChange={setFilters}
+        defaultOpen={false}
+        showAssegnatario={false}
+      />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">

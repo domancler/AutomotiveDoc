@@ -17,8 +17,18 @@ export function FascicoliTuttiPage() {
     const query = q.trim().toLowerCase();
     if (!query) return filtered;
 
+    // La search *non* include campi già coperti da filtri dedicati (es. stato, assegnatario, marca).
     return filtered.filter((f) =>
-      [f.id, f.numero, f.cliente.nome, f.veicolo.marca, f.veicolo.modello, f.veicolo.targa, f.assegnatario, f.stato]
+      [
+        f.id,
+        f.numero,
+        f.cliente.nome,
+        f.cliente.email,
+        f.cliente.telefono,
+        f.veicolo.modello,
+        f.veicolo.targa,
+        f.veicolo.vin,
+      ]
         .filter(Boolean)
         .some((x) => String(x).toLowerCase().includes(query)),
     );
@@ -32,7 +42,7 @@ export function FascicoliTuttiPage() {
           <p className="text-sm text-muted-foreground">Storico completo (mock).</p>
         </div>
         <div className="w-full md:w-[360px]">
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ricerca (AND): stato, cliente, targa..." />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ricerca (AND): cliente, numero, targa, modello..." />
         </div>
       </div>
 
