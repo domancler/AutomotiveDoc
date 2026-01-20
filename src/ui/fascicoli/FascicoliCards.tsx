@@ -57,50 +57,52 @@ export function FascicoliCards({
   const end = start + pageSize;
   const slice = rows.slice(start, end);
 
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <div className="text-muted-foreground">
-          Mostro <span className="font-medium text-foreground">{rows.length ? start + 1 : 0}</span>–
-          <span className="font-medium text-foreground">{Math.min(end, rows.length)}</span> di{" "}
-          <span className="font-medium text-foreground">{rows.length}</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="text-xs text-muted-foreground">Righe/pagina</div>
-          <select
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value) as PageSize);
-              setPage(1);
-            }}
-          >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-
-          <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={page === 1}>
-            {"<<"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page === 1}>
-            {"<"}
-          </Button>
-
-          <div className="min-w-[110px] text-center">
-            Pagina <span className="font-medium">{page}</span> / <span className="font-medium">{pageCount}</span>
-          </div>
-
-          <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page === pageCount}>
-            {">"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setPage(pageCount)} disabled={page === pageCount}>
-            {">>"}
-          </Button>
-        </div>
+  const Paginator = (
+    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+      <div className="text-muted-foreground">
+        Mostro <span className="font-medium text-foreground">{rows.length ? start + 1 : 0}</span>–
+        <span className="font-medium text-foreground">{Math.min(end, rows.length)}</span> di{" "}
+        <span className="font-medium text-foreground">{rows.length}</span>
       </div>
 
+      <div className="flex items-center gap-2">
+        <div className="text-xs text-muted-foreground">Righe/pagina</div>
+        <select
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value) as PageSize);
+            setPage(1);
+          }}
+        >
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+        </select>
+
+        <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={page === 1}>
+          {"<<"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page === 1}>
+          {"<"}
+        </Button>
+
+        <div className="min-w-[110px] text-center">
+          Pagina <span className="font-medium">{page}</span> / <span className="font-medium">{pageCount}</span>
+        </div>
+
+        <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page === pageCount}>
+          {">"}
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setPage(pageCount)} disabled={page === pageCount}>
+          {">>"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-3">
       <div className="space-y-3">
         {slice.map((f) => {
           const vehicle = `${f.veicolo.marca} ${f.veicolo.modello}`;
@@ -173,6 +175,8 @@ export function FascicoliCards({
           </div>
         )}
       </div>
+
+      {Paginator}
     </div>
   );
 }
