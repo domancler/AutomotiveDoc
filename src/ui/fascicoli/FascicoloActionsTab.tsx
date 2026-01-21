@@ -191,14 +191,14 @@ function reasonByState(action: Action, state?: string) {
 }
 
 function ActionCard({
-  title,
-  subtitle,
-  icon,
-  tone = "default",
-  enabled,
-  onClick,
-  disabledReason,
-}: {
+                      title,
+                      subtitle,
+                      icon,
+                      tone = "default",
+                      enabled,
+                      onClick,
+                      disabledReason,
+                    }: {
   title: string;
   subtitle: string;
   icon: React.ReactNode;
@@ -214,8 +214,10 @@ function ActionCard({
 
   const baseCard = cn(
     "w-full rounded-2xl border bg-card p-4 text-left transition",
-    "flex flex-col",
-    enabled ? "hover:bg-accent/40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" : "border-dashed opacity-70 cursor-not-allowed"
+    "flex flex-col h-full", // <-- h-full importante per allineare nella griglia
+    enabled
+      ? "hover:bg-accent/40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      : "border-dashed opacity-70 cursor-not-allowed"
   );
 
   const Header = (
@@ -234,7 +236,9 @@ function ActionCard({
 
         <div className="min-w-0">
           <div className="font-semibold leading-tight">{title}</div>
-          <div className="text-sm text-muted-foreground leading-snug min-h-[40px]">
+
+          {/* ✅ descrizione ATTACCATA al titolo (niente min-h qui) */}
+          <div className="text-sm text-muted-foreground leading-snug mt-1">
             {subtitle}
           </div>
         </div>
@@ -248,8 +252,12 @@ function ActionCard({
     </div>
   );
 
+  // ✅ Footer allineato nella riga:
+  // - mt-auto lo spinge in basso, quindi "Motivo" parte alla stessa altezza per le card della riga
+  // - min-h garantisce base uniforme anche quando il motivo è corto/assente
+  // - pt-3 dà quel margine "giusto" rispetto alla descrizione
   const Footer = (
-    <div className="mt-3 min-h-[44px] text-sm text-muted-foreground leading-snug">
+    <div className="mt-auto pt-2 min-h-[32px] text-sm text-muted-foreground leading-snug">
       {!enabled && disabledReason ? (
         <>
           <span className="font-medium">Motivo:</span>{" "}
@@ -275,7 +283,11 @@ function ActionCard({
   }
 
   return (
-    <div className={baseCard} title={disabledReason} aria-label={`Non disponibile: ${title}`}>
+    <div
+      className={baseCard}
+      title={disabledReason}
+      aria-label={`Non disponibile: ${title}`}
+    >
       {Header}
       {Footer}
     </div>
