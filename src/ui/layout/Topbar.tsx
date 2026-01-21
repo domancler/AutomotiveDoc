@@ -8,6 +8,7 @@ export function Topbar() {
 
   const isFascicoloDetail =
     pathname.startsWith("/fascicoli/") &&
+    !pathname.startsWith("/fascicoli/disponibili") &&
     !pathname.startsWith("/fascicoli/in-corso") &&
     !pathname.startsWith("/fascicoli/tutti");
 
@@ -39,6 +40,16 @@ export function Topbar() {
               }
             >
               Dashboard
+            </NavLink>
+            <NavLink
+              to="/fascicoli/disponibili"
+              className={({ isActive }) =>
+                isActive
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }
+            >
+              Disponibili
             </NavLink>
             <NavLink
               to="/fascicoli/in-corso"

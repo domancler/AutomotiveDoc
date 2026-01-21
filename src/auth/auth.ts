@@ -10,15 +10,15 @@ export type StoredUser = {
 const LS_KEY = "automotivedoc_user";
 
 export const DEMO_USERS: StoredUser[] = [
-  { id: "admin", username: "admin", name: "Admin", role: "ADMIN" },
-  { id: "amm", username: "amministrativo", name: "Amministrativo", role: "AMMINISTRATIVO" },
-  { id: "sup", username: "supervisore", name: "Supervisore", role: "RESPONSABILE" },
-  { id: "ven", username: "venditore", name: "Venditore", role: "COMMERCIALE" },
-  { id: "bo", username: "bo", name: "BackOffice Anagrafico", role: "BO" },
-  { id: "bof", username: "bof", name: "BackOffice Finanziario", role: "BOF" },
-  { id: "bou", username: "bou", name: "BackOffice Permuta", role: "BOU" },
-  { id: "del", username: "consegna", name: "Operatore consegna", role: "CONSEGNATORE" },
-  { id: "vrc", username: "controllo", name: "Controllo consegna", role: "VRC" },
+  { id: "admin", username: "admin", name: "Ad", role: "ADMIN" },
+  { id: "amm", username: "amministrativo", name: "Amm", role: "AMMINISTRATIVO" },
+  { id: "sup", username: "supervisore", name: "Sup", role: "RESPONSABILE" },
+  { id: "ven", username: "venditore", name: "Ven", role: "COMMERCIALE" },
+  { id: "bo", username: "bo", name: "BaOff An", role: "BO" },
+  { id: "bof", username: "bof", name: "BaOff Fin", role: "BOF" },
+  { id: "bou", username: "bou", name: "BaOff Per", role: "BOU" },
+  { id: "del", username: "consegna", name: "Op Con", role: "CONSEGNATORE" },
+  { id: "vrc", username: "controllo", name: "Con cons", role: "VRC" },
 ];
 
 function roleFromUsername(username: string): Role {

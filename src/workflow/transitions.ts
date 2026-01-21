@@ -41,9 +41,10 @@ function pushTimeline(f: Fascicolo, actor: string, event: string) {
 export function applyWorkflowAction(
   f: Fascicolo,
   action: Action,
-  actor: { role?: Role; name?: string }
+  actor: { id?: string; role?: Role; name?: string }
 ): Fascicolo {
   const actorName = actor.name || actor.role || "Utente";
+  const actorId = actor.id ?? null;
   const wf = f.workflow ?? {
     overall: States.NUOVO,
     bo: States.NUOVO,
@@ -107,6 +108,7 @@ export function applyWorkflowAction(
       setBranch("bo", States.VERIFICHE_BO);
       next = {
         ...next,
+        inChargeBO: actorId,
         timeline: pushTimeline(next, actorName, "BO Anagrafico: preso in carico"),
       };
       return next;
@@ -136,6 +138,7 @@ export function applyWorkflowAction(
       setBranch("bof", States.VERIFICHE_BOF);
       next = {
         ...next,
+        inChargeBOF: actorId,
         timeline: pushTimeline(next, actorName, "BO Finanziario: preso in carico"),
       };
       return next;
@@ -164,6 +167,7 @@ export function applyWorkflowAction(
       setBranch("bou", States.VERIFICHE_BOU);
       next = {
         ...next,
+        inChargeBOU: actorId,
         timeline: pushTimeline(next, actorName, "BO Permuta: preso in carico"),
       };
       return next;
@@ -193,6 +197,7 @@ export function applyWorkflowAction(
       setOverall(States.DA_VALIDARE_CONSEGNA);
       next = {
         ...next,
+        inChargeDelivery: actorId,
         progress: Math.max(next.progress ?? 0, 90),
         timeline: pushTimeline(next, actorName, "Operatore consegna: presa in carico"),
       };
@@ -211,6 +216,7 @@ export function applyWorkflowAction(
       setOverall(States.VERIFICHE_CONSEGNA);
       next = {
         ...next,
+        inChargeVRC: actorId,
         timeline: pushTimeline(next, actorName, "Controllo consegna: preso in carico"),
       };
       return next;

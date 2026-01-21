@@ -38,10 +38,10 @@ export function FascicoliTuttiPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tutti i fascicoli</h1>
-          <p className="text-sm text-muted-foreground">Storico completo (mock).</p>
+          <p className="text-sm text-muted-foreground">Storico completo</p>
         </div>
         <div className="w-full md:w-[360px]">
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ricerca (AND): cliente, numero, targa, modello..." />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ricerca per cliente, numero, targa, modello..." />
         </div>
       </div>
 

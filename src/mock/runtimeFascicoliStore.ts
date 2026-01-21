@@ -44,7 +44,7 @@ export function updateFascicolo(id: string, updater: (current: Fascicolo) => Fas
 export function dispatchFascicoloAction(args: {
   fascicoloId: string;
   action: Action;
-  actor: { role?: Role; name?: string };
+  actor: { id?: string; role?: Role; name?: string };
 }) {
   updateFascicolo(args.fascicoloId, (f) => applyWorkflowAction(f, args.action, args.actor));
 }

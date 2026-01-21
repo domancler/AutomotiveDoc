@@ -114,9 +114,15 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
 
   // BO (Anagrafica)
   if (role === "BO") {
-    if (action === "FASCICOLO.TAKE_BO") return state === States.DA_VALIDARE_BO;
-    if (action === "FASCICOLO.VALIDATE_BO") return state === States.VERIFICHE_BO;
-    if (action === "FASCICOLO.REQUEST_REVIEW_BO") return state === States.VERIFICHE_BO;
+    const inCharge = fascicolo?.inChargeBO ?? null;
+
+    // “Disponibili” = solo se nessuno del ruolo ha già preso in carico
+    if (action === "FASCICOLO.TAKE_BO") return state === States.DA_VALIDARE_BO && !inCharge;
+
+    // Dopo la presa in carico, può operare SOLO chi lo ha in carico
+    if (action === "FASCICOLO.VALIDATE_BO") return state === States.VERIFICHE_BO && inCharge === user.id;
+    if (action === "FASCICOLO.REQUEST_REVIEW_BO") return state === States.VERIFICHE_BO && inCharge === user.id;
+
     if (action === "FASCICOLO.REOPEN") return state === States.APPROVATO;
     return false;
   }
@@ -125,9 +131,12 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   if (role === "BOF") {
     if (!isActiveArea(fascicolo, "BOF")) return false;
 
-    if (action === "FASCICOLO.TAKE_BOF") return state === States.DA_VALIDARE_BOF;
-    if (action === "FASCICOLO.VALIDATE_BOF") return state === States.VERIFICHE_BOF;
-    if (action === "FASCICOLO.REQUEST_REVIEW_BOF") return state === States.VERIFICHE_BOF;
+    const inCharge = fascicolo?.inChargeBOF ?? null;
+
+    if (action === "FASCICOLO.TAKE_BOF") return state === States.DA_VALIDARE_BOF && !inCharge;
+    if (action === "FASCICOLO.VALIDATE_BOF") return state === States.VERIFICHE_BOF && inCharge === user.id;
+    if (action === "FASCICOLO.REQUEST_REVIEW_BOF") return state === States.VERIFICHE_BOF && inCharge === user.id;
+
     if (action === "FASCICOLO.REOPEN") return state === States.APPROVATO;
     return false;
   }
@@ -136,36 +145,53 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   if (role === "BOU") {
     if (!isActiveArea(fascicolo, "BOU")) return false;
 
-    if (action === "FASCICOLO.TAKE_BOU") return state === States.DA_VALIDARE_BOU;
-    if (action === "FASCICOLO.VALIDATE_BOU") return state === States.VERIFICHE_BOU;
-    if (action === "FASCICOLO.REQUEST_REVIEW_BOU") return state === States.VERIFICHE_BOU;
+    const inCharge = fascicolo?.inChargeBOU ?? null;
+
+    if (action === "FASCICOLO.TAKE_BOU") return state === States.DA_VALIDARE_BOU && !inCharge;
+    if (action === "FASCICOLO.VALIDATE_BOU") return state === States.VERIFICHE_BOU && inCharge === user.id;
+    if (action === "FASCICOLO.REQUEST_REVIEW_BOU") return state === States.VERIFICHE_BOU && inCharge === user.id;
+
     if (action === "FASCICOLO.REOPEN") return state === States.APPROVATO;
     return false;
   }
 
   // CONSEGNATORE
   if (role === "CONSEGNATORE") {
+    const inCharge = fascicolo?.inChargeDelivery ?? null;
+
     if (action === "DELIVERY.TAKE") {
-      // nota diagramma: prende in carico senza cambio stato in S11
-      return state === States.APPROVATO;
+      // prende in carico SOLO se “senza padrone”
+      return state === States.APPROVATO && !inCharge;
     }
+
     if (action === "DELIVERY.UPLOAD") {
-      return state === States.APPROVATO || state === States.DA_RIVEDERE_VRC;
+      return (
+        inCharge === user.id &&
+        (state === States.DA_VALIDARE_CONSEGNA || state === States.DA_RIVEDERE_VRC)
+      );
     }
+
     if (action === "DELIVERY.SEND_TO_VRC") {
-      // S11 -> S12 (o da S14 -> torna in S13)
-      return state === States.APPROVATO || state === States.DA_RIVEDERE_VRC;
+      return (
+        inCharge === user.id &&
+        (state === States.DA_VALIDARE_CONSEGNA || state === States.DA_RIVEDERE_VRC)
+      );
     }
+
     return false;
   }
 
   // VRC
   if (role === "VRC") {
-    if (action === "VRC.TAKE") return state === States.DA_VALIDARE_CONSEGNA;
-    if (action === "VRC.VALIDATE") return state === States.VERIFICHE_CONSEGNA;
-    if (action === "VRC.REQUEST_FIX") return state === States.VERIFICHE_CONSEGNA;
+    const inCharge = fascicolo?.inChargeVRC ?? null;
+
+    if (action === "VRC.TAKE") return state === States.DA_VALIDARE_CONSEGNA && !inCharge;
+    if (action === "VRC.VALIDATE") return state === States.VERIFICHE_CONSEGNA && inCharge === user.id;
+    if (action === "VRC.REQUEST_FIX") return state === States.VERIFICHE_CONSEGNA && inCharge === user.id;
+
     return false;
   }
 
   return false;
 }
+

@@ -44,7 +44,7 @@ export function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Panoramica</h1>
         <p className="text-sm text-muted-foreground">
-          KPI e trend (mock) per il ciclo di vita dei fascicoli contrattuali.
+          KPI e trend per il ciclo di vita dei fascicoli contrattuali.
         </p>
       </div>
 

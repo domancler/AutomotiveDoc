@@ -306,7 +306,7 @@ export function FascicoliFilters({
       <div className="flex flex-wrap items-center justify-between gap-2 p-4">
         <div className="flex items-center gap-2">
           <div className="font-semibold">Filtri</div>
-          <div className="text-xs text-muted-foreground">AND tra filtri • OR tra opzioni</div>
+          {/*<div className="text-xs text-muted-foreground">AND tra filtri • OR tra opzioni</div>*/}
           {activeCount > 0 && (
             <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
               {activeCount} attivi

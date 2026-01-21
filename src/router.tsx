@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppLayout } from "@/ui/layout/AppLayout";
 import { DashboardPage } from "@/views/DashboardPage";
 import { FascicoliInCorsoPage } from "@/views/FascicoliInCorsoPage";
+import { FascicoliDisponibiliPage } from "@/views/FascicoliDisponibiliPage";
 import { FascicoliTuttiPage } from "@/views/FascicoliTuttiPage";
 import { FascicoloDettaglioPage } from "@/views/FascicoloDettaglioPage";
 import { NotFoundPage } from "@/views/NotFoundPage";
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <Navigate to="/dashboard" replace /> },
       { path: "/dashboard", element: <DashboardPage /> },
+      { path: "/fascicoli/disponibili", element: <FascicoliDisponibiliPage /> },
       { path: "/fascicoli/in-corso", element: <FascicoliInCorsoPage /> },
       { path: "/fascicoli/tutti", element: <FascicoliTuttiPage /> },
       { path: "/fascicoli/:id", element: <FascicoloDettaglioPage /> },

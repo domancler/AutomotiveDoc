@@ -160,9 +160,9 @@ export function FascicoliCards({
                   >
                     Dettagli
                   </Link>
-                  <Button variant="ghost" size="icon" aria-label="Altre azioni" disabled>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  {/*<Button variant="ghost" size="icon" aria-label="Altre azioni" disabled>*/}
+                  {/*  <MoreHorizontal className="h-4 w-4" />*/}
+                  {/*</Button>*/}
                 </div>
               </div>
             </Card>

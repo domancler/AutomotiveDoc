@@ -31,6 +31,15 @@ export function Sidebar() {
           Fascicoli
         </div>
 
+
+        <NavLink
+          to="/fascicoli/disponibili"
+          className={({ isActive }) => cn(linkBase, isActive && "bg-accent text-accent-foreground")}
+        >
+          <FileText className="h-4 w-4" />
+          Disponibili
+        </NavLink>
+
         <NavLink
           to="/fascicoli/in-corso"
           className={({ isActive }) => cn(linkBase, isActive && "bg-accent text-accent-foreground")}

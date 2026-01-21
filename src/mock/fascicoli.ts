@@ -37,6 +37,12 @@ export type Fascicolo = {
   stato: FascicoloStato;
   /** Workflow a stati (macro + rami BO) */
   workflow?: FascicoloWorkflow;
+  /** Presa in carico per area (\"senza padrone\" quando null/undefined) */
+  inChargeBO?: string | null;
+  inChargeBOF?: string | null;
+  inChargeBOU?: string | null;
+  inChargeDelivery?: string | null;
+  inChargeVRC?: string | null;
   /** Flag di dominio: abilita ramo finanziario */
   hasFinanziamento?: boolean;
   /** Flag di dominio: abilita ramo permuta */
@@ -70,6 +76,11 @@ const seedFascicoli: Fascicolo[] = [
 	      bof: States.NUOVO,
 	      bou: States.NUOVO,
     },
+    inChargeBO: null,
+    inChargeBOF: null,
+    inChargeBOU: null,
+    inChargeDelivery: null,
+    inChargeVRC: null,
     createdAt: isoDaysAgo(10),
     updatedAt: isoDaysAgo(1),
     valore: 21990,

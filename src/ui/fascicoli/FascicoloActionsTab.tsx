@@ -87,6 +87,11 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
       (f.assegnatario ? String(f.assegnatario).toLowerCase() : undefined),
     hasFinanziamento: anyF.hasFinanziamento ?? hasProvaPagamentoDoc(f),
     hasPermuta: anyF.hasPermuta ?? false,
+    inChargeBO: anyF.inChargeBO ?? null,
+    inChargeBOF: anyF.inChargeBOF ?? null,
+    inChargeBOU: anyF.inChargeBOU ?? null,
+    inChargeDelivery: anyF.inChargeDelivery ?? null,
+    inChargeVRC: anyF.inChargeVRC ?? null,
   };
 }
 
@@ -280,7 +285,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
     dispatchFascicoloAction({
       fascicoloId: fascicolo.id,
       action,
-      actor: { role, name: user?.name || user?.username || user?.id },
+      actor: { id: user?.id, role, name: user?.name || user?.username || user?.id },
     });
 
     // feedback leggero (rimane tutto runtime)

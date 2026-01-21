@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useFascicoli } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/components/card";
 import { Input } from "@/ui/components/input";
-import { applyFascicoliFilters, createEmptyFilters, FascicoliFilters } from "@/ui/fascicoli/FascicoliFilters";
+import { applyFascicoliFilters, createEmptyFilters } from "@/ui/fascicoli/FascicoliFilters";
 import { FascicoliCards } from "@/ui/fascicoli/FascicoliCards";
 import { useAuth } from "@/auth/AuthProvider";
 import type { Action } from "@/auth/actions";
@@ -11,30 +11,17 @@ import { States, type StateCode } from "@/workflow/states";
 import type { Fascicolo } from "@/mock/fascicoli";
 import type { Role } from "@/auth/roles";
 
-const OPERATE_ACTIONS: Action[] = [
-  // commerciale
-  "FASCICOLO.EDIT_OWN",
-  "FASCICOLO.SEND_AS_COMM",
-  "FASCICOLO.REQUEST_REOPEN",
-
-  // backoffice (dopo presa in carico)
-  "FASCICOLO.VALIDATE_BO",
-  "FASCICOLO.VALIDATE_BOF",
-  "FASCICOLO.VALIDATE_BOU",
-  "FASCICOLO.REQUEST_REVIEW_BO",
-  "FASCICOLO.REQUEST_REVIEW_BOF",
-  "FASCICOLO.REQUEST_REVIEW_BOU",
-  "FASCICOLO.REOPEN",
-
-  // consegna (dopo presa in carico)
-  "DELIVERY.UPLOAD",
-  "DELIVERY.SEND_TO_VRC",
-
-  // controllo consegna (dopo presa in carico)
-  "VRC.VALIDATE",
-  "VRC.REQUEST_FIX",
-];
-
+const TAKE_BY_ROLE: Record<Role, Action | null> = {
+  ADMIN: null,
+  AMMINISTRATIVO: null,
+  RESPONSABILE: null,
+  COMMERCIALE: null,
+  BO: "FASCICOLO.TAKE_BO",
+  BOF: "FASCICOLO.TAKE_BOF",
+  BOU: "FASCICOLO.TAKE_BOU",
+  CONSEGNATORE: "DELIVERY.TAKE",
+  VRC: "VRC.TAKE",
+};
 
 function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
   switch (stato) {
@@ -91,25 +78,24 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
   };
 }
 
-function canModifyFascicolo(f: Fascicolo, user: { id: string; username: string; role: Role }) {
+function canTake(f: Fascicolo, user: { id: string; username: string; role: Role }) {
+  const action = TAKE_BY_ROLE[user.role];
+  if (!action) return false;
   const ctx = buildCtx(f, user.role);
-  return OPERATE_ACTIONS.some((a) => can(user, a, ctx));
+  return can(user, action, ctx);
 }
 
-export function FascicoliInCorsoPage() {
+export function FascicoliDisponibiliPage() {
   const fascicoli = useFascicoli();
   const [q, setQ] = useState("");
   const [filters, setFilters] = useState(createEmptyFilters());
   const { user } = useAuth();
 
-  const base = useMemo(
-    () => {
-      if (!user) return [];
-      // 🔥 “In corso” = solo fascicoli su cui l’utente corrente può fare azioni (take, invio, upload, validazioni...)
-      return fascicoli.filter((f) => canModifyFascicolo(f, user));
-    },
-    [fascicoli, user],
-  );
+  const base = useMemo(() => {
+    if (!user) return [];
+    // “Disponibili” = fascicoli “senza padrone” nel tuo reparto, che puoi prendere in carico
+    return fascicoli.filter((f) => canTake(f, user));
+  }, [fascicoli, user]);
 
   const rows = useMemo(() => {
     const filtered = applyFascicoliFilters(base, filters);
@@ -117,8 +103,6 @@ export function FascicoliInCorsoPage() {
     const query = q.trim().toLowerCase();
     if (!query) return filtered;
 
-    // AND: la search si applica in AND ai filtri
-    // La search *non* include campi già coperti da filtri dedicati (es. stato, assegnatario, marca).
     return filtered.filter((f) =>
       [
         f.id,
@@ -135,25 +119,22 @@ export function FascicoliInCorsoPage() {
     );
   }, [base, filters, q]);
 
+  const role = (user?.role ?? null) as Role | null;
+  const takeAction = role ? TAKE_BY_ROLE[role] : null;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Fascicoli in corso</h1>
-          <p className="text-sm text-muted-foreground">Lista dei fascicoli su cui puoi operare</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Fascicoli disponibili</h1>
+          <p className="text-sm text-muted-foreground">
+            Lista dei fascicoli senza operatore assegnato, disponibili alla presa in carico
+          </p>
         </div>
         <div className="w-full md:w-[360px]">
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ricerca per cliente, targa, numero..." />
         </div>
       </div>
-
-      <FascicoliFilters
-        rows={base}
-        value={filters}
-        onChange={setFilters}
-        defaultOpen={false}
-        showAssegnatario={false}
-      />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -169,4 +150,3 @@ export function FascicoliInCorsoPage() {
     </div>
   );
 }
-
