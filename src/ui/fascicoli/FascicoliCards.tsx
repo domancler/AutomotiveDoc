@@ -153,7 +153,7 @@ export function FascicoliCards({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2 self-center">
                   <Link
                     to={`/fascicoli/${f.id}`}
                     className={cn(buttonVariants({ variant: "outline", size: "sm" }))}

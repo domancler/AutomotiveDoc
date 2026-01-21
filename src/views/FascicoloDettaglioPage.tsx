@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useFascicolo } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
@@ -51,6 +51,7 @@ export function FascicoloDettaglioPage() {
   })();
 
   const vs = fascicolo.workflow ? visibleStatusForRole(fascicolo, user?.role as any) : null;
+  const showBackofficeTab = Boolean(fascicolo.workflow);
 
   return (
     <div className="space-y-6">
@@ -97,28 +98,7 @@ export function FascicoloDettaglioPage() {
         </div>
       </div>
 
-      {fascicolo.workflow && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Stati BackOffice</CardTitle>
-            <CardDescription>
-              Dettaglio dei rami indipendenti (anagrafico, finanziario, permuta)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {(() => {
-              const s = branchStatusBadges(fascicolo);
-              return (
-                <>
-                  <Badge variant={s.bo.variant as any}>Anagrafico: {s.bo.label}</Badge>
-                  <Badge variant={s.bof.variant as any}>Finanziario: {s.bof.label}</Badge>
-                  <Badge variant={s.bou.variant as any}>Permuta: {s.bou.label}</Badge>
-                </>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+      {/* Stati BackOffice: mostrati in un tab dedicato quando esiste il workflow */}
 
       <Card>
         <CardHeader>
@@ -148,6 +128,9 @@ export function FascicoloDettaglioPage() {
           <TabsTrigger value="docs">Documenti</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="notes">Note</TabsTrigger>
+          {showBackofficeTab && (
+            <TabsTrigger value="backoffice">Backoffice</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview">
@@ -314,6 +297,31 @@ export function FascicoloDettaglioPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {showBackofficeTab && (
+          <TabsContent value="backoffice">
+            <Card>
+              <CardHeader>
+                <CardTitle>Stati BackOffice</CardTitle>
+                <CardDescription>
+                  Dettaglio dei rami indipendenti (anagrafico, finanziario, permuta)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                {(() => {
+                  const s = branchStatusBadges(fascicolo);
+                  return (
+                    <>
+                      <Badge variant={s.bo.variant as any}>Anagrafico: {s.bo.label}</Badge>
+                      <Badge variant={s.bof.variant as any}>Finanziario: {s.bof.label}</Badge>
+                      <Badge variant={s.bou.variant as any}>Permuta: {s.bou.label}</Badge>
+                    </>
+                  );
+                })()}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -1,7 +1,6 @@
 import * as React from "react";
 import { useTheme } from "next-themes";
 import { Sun, Moon, Monitor, ChevronDown } from "lucide-react";
-import { Button } from "@/ui/components/button";
 import { cn } from "@/lib/utils";
 import { useOnClickOutside } from "@/lib/useOnClickOutside";
 
@@ -38,19 +37,27 @@ export function ThemeMenu() {
 
   return (
     <div ref={wrapRef} className="relative">
-      <Button
+      {/*
+        Trigger volutamente "grande" come lo UserMenu (stessa altezza/padding),
+        per avere i due bottoni allineati visivamente in Topbar.
+      */}
+      <button
         type="button"
-        variant="outline"
-        size="sm"
         onClick={() => setOpen((v) => !v)}
-        className="gap-2"
+        className={cn(
+          "flex items-center gap-2 rounded-xl border bg-background px-2 py-1.5 text-sm",
+          "hover:bg-accent hover:text-accent-foreground transition",
+          open && "bg-accent text-accent-foreground",
+        )}
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <activeItem.Icon className="h-4 w-4" />
-        <span className="hidden sm:inline">{activeItem.label}</span>
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-secondary text-secondary-foreground">
+          <activeItem.Icon className="h-4 w-4" />
+        </span>
+        <span className="hidden sm:inline font-medium">{activeItem.label}</span>
         <ChevronDown className={cn("h-4 w-4 transition", open && "rotate-180")} />
-      </Button>
+      </button>
 
       {open && (
         <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-44 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-soft">

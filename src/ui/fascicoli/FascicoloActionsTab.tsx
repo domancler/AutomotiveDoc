@@ -6,7 +6,6 @@ import { States, type StateCode } from "@/workflow/states";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
 
-import { Button } from "@/ui/components/button";
 import { Badge } from "@/ui/components/badge";
 import { cn } from "@/lib/utils";
 
@@ -208,64 +207,77 @@ function ActionCard({
   onClick: () => void;
   disabledReason?: string;
 }) {
-  const variant = tone === "danger" ? "destructive" : tone === "outline" ? "outline" : "default";
+  const iconTone =
+    tone === "danger"
+      ? "border-destructive/30 text-destructive"
+      : "border-input";
 
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border bg-card p-4",
-        !enabled && "border-dashed opacity-70"
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-xl border p-2">{icon}</div>
-          <div>
-            <div className="font-semibold leading-tight">{title}</div>
-            <div className="text-sm text-muted-foreground">{subtitle}</div>
+  const baseCard = cn(
+    "w-full rounded-2xl border bg-card p-4 text-left transition",
+    "flex flex-col",
+    enabled ? "hover:bg-accent/40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" : "border-dashed opacity-70 cursor-not-allowed"
+  );
+
+  const Header = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3 min-w-0">
+        <div
+          className={cn(
+            "mt-0.5 rounded-xl border p-2",
+            iconTone,
+            enabled ? "bg-background" : "opacity-50"
+          )}
+          aria-hidden="true"
+        >
+          {icon}
+        </div>
+
+        <div className="min-w-0">
+          <div className="font-semibold leading-tight">{title}</div>
+          <div className="text-sm text-muted-foreground leading-snug min-h-[40px]">
+            {subtitle}
           </div>
         </div>
-
-        {!enabled && <Badge variant="danger">Non disponibile</Badge>}
       </div>
 
-      {!enabled && disabledReason && (
-        <div className="mt-3 text-sm text-muted-foreground">
-          <span className="font-medium">Motivo:</span> {disabledReason}
-        </div>
+      {!enabled && (
+        <Badge className="shrink-0 whitespace-nowrap" variant="danger">
+          Non disponibile
+        </Badge>
       )}
-
-      <div className="mt-4">
-        <Button
-          variant={variant as any}
-          className={cn("w-full", !enabled && "cursor-not-allowed")}
-          disabled={!enabled}
-          onClick={onClick}
-          title={!enabled ? disabledReason : undefined}
-        >
-          {enabled ? "Esegui" : "Non disponibile"}
-        </Button>
-      </div>
     </div>
   );
-}
 
-function RolePanel({
-                     title,
-                     hint,
-                     children,
-                   }: {
-  title: string;
-  hint: string;
-  children: React.ReactNode;
-}) {
+  const Footer = (
+    <div className="mt-3 min-h-[44px] text-sm text-muted-foreground leading-snug">
+      {!enabled && disabledReason ? (
+        <>
+          <span className="font-medium">Motivo:</span>{" "}
+          <span className="break-words">{disabledReason}</span>
+        </>
+      ) : null}
+    </div>
+  );
+
+  if (enabled) {
+    return (
+      <button
+        type="button"
+        className={baseCard}
+        onClick={onClick}
+        title={`Esegui: ${title}`}
+        aria-label={`Esegui: ${title}`}
+      >
+        {Header}
+        {Footer}
+      </button>
+    );
+  }
+
   return (
-    <div className="rounded-2xl border bg-background">
-      <div className="p-4">
-        <div className="text-lg font-semibold">{title}</div>
-        <div className="text-sm text-muted-foreground">{hint}</div>
-      </div>
-      <div className="border-t p-4">{children}</div>
+    <div className={baseCard} title={disabledReason} aria-label={`Non disponibile: ${title}`}>
+      {Header}
+      {Footer}
     </div>
   );
 }
@@ -305,42 +317,34 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-2xl border bg-card p-4">
+      <div className="space-y-4">
       {/* ✅ COMMERCIALE: vede SOLO queste */}
       {role === "COMMERCIALE" && (
-        <RolePanel
-          title="Venditore"
-          hint="Compilazione e invio fascicolo, proposta riapertura dopo approvazione."
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            <ActionCard
-              title="Invia fascicolo"
-              subtitle="Invia il fascicolo alla fase di validazione."
-              icon={<Send className="h-5 w-5" />}
-              enabled={allowed("FASCICOLO.SEND_AS_COMM")}
-              onClick={() => doAction("FASCICOLO.SEND_AS_COMM", "Invia fascicolo")}
-              disabledReason={disabledReason("FASCICOLO.SEND_AS_COMM")}
-            />
-            <ActionCard
-              title="Proponi riapertura"
-              subtitle="Segnala un errore dopo approvazione."
-              icon={<RotateCcw className="h-5 w-5" />}
-              tone="outline"
-              enabled={allowed("FASCICOLO.REQUEST_REOPEN")}
-              onClick={() => doAction("FASCICOLO.REQUEST_REOPEN", "Proponi riapertura")}
-              disabledReason={disabledReason("FASCICOLO.REQUEST_REOPEN")}
-            />
-          </div>
-        </RolePanel>
+        <div className="grid gap-3 md:grid-cols-2">
+          <ActionCard
+            title="Invia fascicolo"
+            subtitle="Invia il fascicolo alla fase di validazione."
+            icon={<Send className="h-5 w-5" />}
+            enabled={allowed("FASCICOLO.SEND_AS_COMM")}
+            onClick={() => doAction("FASCICOLO.SEND_AS_COMM", "Invia fascicolo")}
+            disabledReason={disabledReason("FASCICOLO.SEND_AS_COMM")}
+          />
+          <ActionCard
+            title="Proponi riapertura"
+            subtitle="Segnala un errore dopo approvazione."
+            icon={<RotateCcw className="h-5 w-5" />}
+            tone="outline"
+            enabled={allowed("FASCICOLO.REQUEST_REOPEN")}
+            onClick={() => doAction("FASCICOLO.REQUEST_REOPEN", "Proponi riapertura")}
+            disabledReason={disabledReason("FASCICOLO.REQUEST_REOPEN")}
+          />
+        </div>
       )}
 
       {/* ✅ BO */}
       {role === "BO" && (
-        <RolePanel
-          title="BackOffice Anagrafico"
-          hint="Presa in carico, richiesta integrazioni, validazione, riapertura."
-        >
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Inizia le verifiche anagrafiche."
@@ -377,17 +381,12 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
                 disabledReason={disabledReason("FASCICOLO.REOPEN")}
               />
             </div>
-          </div>
-        </RolePanel>
+        </div>
       )}
 
       {/* ✅ BOF */}
       {role === "BOF" && (
-        <RolePanel
-          title="BackOffice Finanziario"
-          hint="Disponibile solo se la sezione finanziaria è attiva nel fascicolo."
-        >
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Inizia verifiche finanziarie."
@@ -424,17 +423,12 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
                 disabledReason={disabledReason("FASCICOLO.REOPEN")}
               />
             </div>
-          </div>
-        </RolePanel>
+        </div>
       )}
 
       {/* ✅ BOU */}
       {role === "BOU" && (
-        <RolePanel
-          title="BackOffice Permuta"
-          hint="Disponibile solo se la sezione permuta/usato è attiva nel fascicolo."
-        >
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Inizia verifiche permuta/usato."
@@ -471,17 +465,12 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
                 disabledReason={disabledReason("FASCICOLO.REOPEN")}
               />
             </div>
-          </div>
-        </RolePanel>
+        </div>
       )}
 
       {/* ✅ CONSEGNATORE */}
       {role === "CONSEGNATORE" && (
-        <RolePanel
-          title="Operatore consegna"
-          hint="Operazioni post-approvazione: carica documenti consegna e invia a controllo."
-        >
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Presa in carico su Approvato (senza cambio stato)."
@@ -506,17 +495,12 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               onClick={() => doAction("DELIVERY.SEND_TO_VRC", "Invia a Controllo consegna")}
               disabledReason={disabledReason("DELIVERY.SEND_TO_VRC")}
             />
-          </div>
-        </RolePanel>
+        </div>
       )}
 
       {/* ✅ VRC */}
       {role === "VRC" && (
-        <RolePanel
-          title="Controllo consegna"
-          hint="Prendi in carico, richiedi integrazioni all'Operatore consegna e valida la consegna."
-        >
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Avvia verifiche consegna."
@@ -543,7 +527,6 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               disabledReason={disabledReason("VRC.VALIDATE")}
             />
           </div>
-        </RolePanel>
       )}
 
       {/* Ruoli “solo lettura” o admin */}
@@ -555,6 +538,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
