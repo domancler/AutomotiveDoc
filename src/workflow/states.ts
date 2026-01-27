@@ -1,12 +1,17 @@
 export type StateCode =
+  | "S00"
   | "S01"
   | "S02" | "S03" | "S04" | "S16"
   | "S05" | "S06" | "S07" | "S17"
   | "S08" | "S09" | "S10" | "S18"
   | "S11"
-  | "S12" | "S13" | "S14" | "S15";
+  | "S12" | "S13" | "S14" | "S15"
+  | "S19";
 
 export const States = {
+  // Pre-ingresso (venditore non ha ancora preso in carico)
+  BOZZA: "S00" as StateCode,
+
   // Ingresso
   NUOVO: "S01" as StateCode,
 
@@ -32,7 +37,10 @@ export const States = {
   APPROVATO: "S11" as StateCode,
 
   // Consegna (VRC)
-  DA_VALIDARE_CONSEGNA: "S12" as StateCode,
+  /** Lavorazione consegna (operatore consegna ha il fascicolo "in mano") */
+  FASE_FINALE: "S12" as StateCode,
+  /** Inviato a controllo consegna (in attesa di presa in carico) */
+  DA_VALIDARE_CONSEGNA: "S19" as StateCode,
   VERIFICHE_CONSEGNA: "S13" as StateCode,
   DA_RIVEDERE_VRC: "S14" as StateCode,
   CONSEGNATO: "S15" as StateCode,

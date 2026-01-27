@@ -1,79 +1,78 @@
 import * as React from "react";
 
 import { Button } from "@/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
+import { cn } from "@/lib/utils";
 
-type ConfirmDialogProps = {
+export type ConfirmDialogProps = {
   open: boolean;
   title: string;
   description?: string;
   confirmText?: string;
   cancelText?: string;
-  tone?: "default" | "destructive";
+  tone?: "danger" | "default";
   onConfirm: () => void;
   onOpenChange: (open: boolean) => void;
 };
 
-/**
- * Piccolo confirm dialog “carino” (senza dipendenze Radix).
- * Usa overlay + Card e supporta ESC / click fuori per chiudere.
- */
 export function ConfirmDialog({
   open,
   title,
   description,
   confirmText = "Conferma",
   cancelText = "Annulla",
-  tone = "default",
+  tone = "danger",
   onConfirm,
   onOpenChange,
 }: ConfirmDialogProps) {
-  const overlayRef = React.useRef<HTMLDivElement | null>(null);
-
   React.useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
+    function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onOpenChange(false);
+    }
+    if (open) {
+      document.addEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onOpenChange]);
 
   if (!open) return null;
 
   return (
     <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onMouseDown={(e) => {
-        // click fuori
-        if (e.target === overlayRef.current) onOpenChange(false);
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
+      aria-label={title}
     >
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          {description ? <CardDescription>{description}</CardDescription> : null}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              {cancelText}
-            </Button>
-            <Button
-              variant={tone === "destructive" ? "destructive" : "default"}
-              onClick={() => {
-                onConfirm();
-                onOpenChange(false);
-              }}
-            >
-              {confirmText}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <button
+        className="absolute inset-0 bg-black/40"
+        aria-label="Chiudi"
+        onClick={() => onOpenChange(false)}
+      />
+
+      <div className="relative w-full max-w-md rounded-2xl border bg-background p-5 shadow-xl">
+        <div className="space-y-2">
+          <div className="text-base font-semibold">{title}</div>
+          {description ? <div className="text-sm text-muted-foreground">{description}</div> : null}
+        </div>
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {cancelText}
+          </Button>
+          <Button
+            className={cn(tone === "danger" && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
+            onClick={() => {
+              onConfirm();
+            }}
+          >
+            {confirmText}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

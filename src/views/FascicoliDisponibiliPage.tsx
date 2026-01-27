@@ -15,7 +15,7 @@ const TAKE_BY_ROLE: Record<Role, Action | null> = {
   ADMIN: null,
   AMMINISTRATIVO: null,
   RESPONSABILE: null,
-  COMMERCIALE: null,
+  COMMERCIALE: "FASCICOLO.TAKE_COMM",
   BO: "FASCICOLO.TAKE_BO",
   BOF: "FASCICOLO.TAKE_BOF",
   BOU: "FASCICOLO.TAKE_BOU",
@@ -24,7 +24,10 @@ const TAKE_BY_ROLE: Record<Role, Action | null> = {
 };
 
 function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
+  // fallback di compatibilità
   switch (stato) {
+    case "Bozza":
+      return States.BOZZA;
     case "In compilazione":
       return States.NUOVO;
     case "In approvazione":
@@ -32,7 +35,7 @@ function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
     case "Firmato":
       return States.APPROVATO;
     default:
-      return States.NUOVO;
+      return States.BOZZA;
   }
 }
 
@@ -67,7 +70,7 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
 
   return {
     state,
-    ownerId: anyF.ownerId ?? (f.assegnatario ? String(f.assegnatario).toLowerCase() : undefined),
+    ownerId: anyF.ownerId ?? (f.ownerId ?? undefined),
     hasFinanziamento: anyF.hasFinanziamento ?? !!anyF.workflow?.bof,
     hasPermuta: anyF.hasPermuta ?? !!anyF.workflow?.bou,
     inChargeBO: anyF.inChargeBO ?? null,
@@ -75,6 +78,7 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
     inChargeBOU: anyF.inChargeBOU ?? null,
     inChargeDelivery: anyF.inChargeDelivery ?? null,
     inChargeVRC: anyF.inChargeVRC ?? null,
+    deliverySentToVRC: anyF.deliverySentToVRC ?? !!(f as any).deliverySentToVRC,
   };
 }
 

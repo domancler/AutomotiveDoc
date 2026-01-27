@@ -2,8 +2,8 @@ import * as React from "react";
 import type { Fascicolo } from "@/mock/fascicoli";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+import { DateRangePicker } from "@/ui/components/date-range-picker";
 import { cn } from "@/lib/utils";
-import { Calendar as CalendarIcon, X } from "lucide-react";
 
 export type DocFilter =
   | "missingRequired" // almeno un documento richiesto mancante
@@ -67,7 +67,7 @@ function docLabel(k: DocFilter) {
     case "missingRequired":
       return "Doc richiesti mancanti";
     case "unsignedContract":
-      return "Contratto non firmato";
+      return "Contratto mancante";
     case "complete":
       return "Completo";
   }
@@ -80,10 +80,10 @@ function docMatchForFascicolo(f: Fascicolo, selected: Set<DocFilter>) {
   const missingRequired = required.some((d) => !d.presente);
 
   const contract = f.documenti.find((d) => d.tipo === "Contratto di vendita");
-  const unsignedContract = Boolean(contract?.presente && contract?.firmato === false);
+  const unsignedContract = Boolean(contract && !contract.presente);
 
-  // "complete": nessun richiesto mancante e contratto firmato (se esiste)
-  const contractOk = contract ? contract.firmato === true : true;
+  // "complete": nessun richiesto mancante e contratto presente (se esiste)
+  const contractOk = contract ? contract.presente === true : true;
   const complete = !missingRequired && contractOk;
 
   // OR tra doc filters selezionati
@@ -152,50 +152,7 @@ function FilterBlock({
   return (
     <div className={cn("rounded-lg border bg-background p-3", className)}>
       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
-      <div className="mt-2 flex flex-wrap gap-2">{children}</div>
-    </div>
-  );
-}
-
-function DateInput({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  onClear,
-}: {
-  label: string;
-  value: string;
-  onChange: (next: string) => void;
-  min?: string;
-  max?: string;
-  onClear: () => void;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="relative">
-        <CalendarIcon className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="date"
-          value={value}
-          min={min}
-          max={max}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn("pl-8", value && "pr-8")}
-        />
-        {value && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label={`Pulisci data (${label})`}
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <div className="mt-1 flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
@@ -260,32 +217,6 @@ export function FascicoliFilters({
       });
     },
     [onChange, value]
-  );
-
-  const handleFromChange = React.useCallback(
-    (next: string) => {
-      const nextFrom = next || undefined;
-      // se ho gia' un "to" e l'utente sceglie un "from" dopo, spostiamo il "to".
-      if (nextFrom && value.createdTo && value.createdTo < nextFrom) {
-        setDateRange(nextFrom, nextFrom);
-        return;
-      }
-      setDateRange(nextFrom, value.createdTo);
-    },
-    [setDateRange, value.createdTo]
-  );
-
-  const handleToChange = React.useCallback(
-    (next: string) => {
-      const nextTo = next || undefined;
-      // se ho gia' un "from" e l'utente sceglie un "to" prima, spostiamo il "from".
-      if (nextTo && value.createdFrom && nextTo < value.createdFrom) {
-        setDateRange(nextTo, nextTo);
-        return;
-      }
-      setDateRange(value.createdFrom, nextTo);
-    },
-    [setDateRange, value.createdFrom]
   );
 
   const applyPreset = React.useCallback(
@@ -370,61 +301,56 @@ export function FascicoliFilters({
             </FilterBlock>
 
             <FilterBlock title="Data creazione" className="md:col-span-2 xl:col-span-3">
-              <div className="flex w-full flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+                {/* Preset */}
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                   <div className="text-xs text-muted-foreground">Preset:</div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("today")}
-                    className="rounded-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPreset("today")}
+                    className="rounded-full"
+                  >
                     Oggi
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("last7")}
-                    className="rounded-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPreset("last7")}
+                    className="rounded-full"
+                  >
                     Ultimi 7gg
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("last30")}
-                    className="rounded-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPreset("last30")}
+                    className="rounded-full"
+                  >
                     Ultimi 30gg
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => applyPreset("thisMonth")}
-                    className="rounded-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPreset("thisMonth")}
+                    className="rounded-full"
+                  >
                     Questo mese
                   </Button>
-                  {(value.createdFrom || value.createdTo) && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDateRange(undefined, undefined)}
-                      className="ml-auto"
-                    >
-                      Pulisci
-                    </Button>
-                  )}
                 </div>
 
-                <div className="grid gap-2 md:grid-cols-2">
-                  <DateInput
-                    label="Da"
-                    value={value.createdFrom ?? ""}
-                    max={value.createdTo}
-                    onClear={() => setDateRange(undefined, value.createdTo)}
-                    onChange={handleFromChange}
-                  />
-
-                  <DateInput
-                    label="A"
-                    value={value.createdTo ?? ""}
-                    min={value.createdFrom}
-                    onClear={() => setDateRange(value.createdFrom, undefined)}
-                    onChange={handleToChange}
+                {/* Da / A (range picker) */}
+                <div className="shrink-0">
+                  <DateRangePicker
+                    from={value.createdFrom}
+                    to={value.createdTo}
+                    onChange={(r) => setDateRange(r.from, r.to)}
                   />
                 </div>
-
-                {(value.createdFrom || value.createdTo) && (
-                  <div className="text-xs text-muted-foreground">
-                    Suggerimento: se selezioni una data finale precedente alla iniziale, il range si aggiusta da solo.
-                  </div>
-                )}
               </div>
             </FilterBlock>
 

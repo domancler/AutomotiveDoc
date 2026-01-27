@@ -96,6 +96,8 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
 
 function niceStateLabel(state?: string) {
   switch (state) {
+    case States.BOZZA:
+      return "Bozza";
     case States.NUOVO:
       return "Nuovo";
     case States.DA_VALIDARE_BO:
@@ -116,6 +118,8 @@ function niceStateLabel(state?: string) {
       return "Validato";
     case States.APPROVATO:
       return "Approvato";
+    case States.FASE_FINALE:
+      return "Fase finale";
     case States.DA_VALIDARE_CONSEGNA:
       return "Consegna - in attesa di verifica";
     case States.VERIFICHE_CONSEGNA:
@@ -137,6 +141,8 @@ function reasonByState(action: Action, state?: string) {
     expected.includes(state) ? "" : `Disponibile solo in: ${expected.map(s => niceStateLabel(s)).join(", ")}`;
 
   switch (action) {
+    case "FASCICOLO.TAKE_COMM":
+      return inState([States.BOZZA]);
     // COMM
     case "FASCICOLO.SEND_AS_COMM":
       return inState([
@@ -176,7 +182,7 @@ function reasonByState(action: Action, state?: string) {
       return inState([States.APPROVATO]);
     case "DELIVERY.UPLOAD":
     case "DELIVERY.SEND_TO_VRC":
-      return inState([States.APPROVATO, States.DA_RIVEDERE_VRC]);
+      return inState([States.FASE_FINALE, States.DA_RIVEDERE_VRC]);
 
     // VRC
     case "VRC.TAKE":
@@ -259,7 +265,9 @@ function ActionCard({
   const Footer = (
     <div className="mt-auto pt-2 min-h-[32px] text-sm text-muted-foreground leading-snug">
       {!enabled && disabledReason ? (
-        <span className="break-words">{disabledReason}</span>
+        <>
+          <span className="break-words">{disabledReason}</span>
+        </>
       ) : null}
     </div>
   );
@@ -332,11 +340,19 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       {role === "COMMERCIALE" && (
         <div className="grid gap-3 md:grid-cols-2">
           <ActionCard
-            title="Invia fascicolo"
+            title="Prendi in carico"
+            subtitle="Porta il fascicolo da Bozza a Nuovo."
+            icon={<Hand className="h-5 w-5" />}
+            enabled={allowed("FASCICOLO.TAKE_COMM")}
+            onClick={() => doAction("FASCICOLO.TAKE_COMM", "Prendi in carico (venditore)")}
+            disabledReason={disabledReason("FASCICOLO.TAKE_COMM")}
+          />
+          <ActionCard
+            title="Procedi"
             subtitle="Invia il fascicolo alla fase di validazione."
             icon={<Send className="h-5 w-5" />}
             enabled={allowed("FASCICOLO.SEND_AS_COMM")}
-            onClick={() => doAction("FASCICOLO.SEND_AS_COMM", "Invia fascicolo")}
+            onClick={() => doAction("FASCICOLO.SEND_AS_COMM", "Procedi")}
             disabledReason={disabledReason("FASCICOLO.SEND_AS_COMM")}
           />
           <ActionCard

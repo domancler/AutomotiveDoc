@@ -11,6 +11,8 @@ export type VisibleStatus = {
 
 function niceStateLabel(state?: StateCode) {
   switch (state) {
+    case States.BOZZA:
+      return "Bozza";
     case States.NUOVO:
       return "Nuovo";
 
@@ -37,6 +39,8 @@ function niceStateLabel(state?: StateCode) {
     case States.APPROVATO:
       return "Approvato";
 
+    case States.FASE_FINALE:
+      return "Fase finale";
     case States.DA_VALIDARE_CONSEGNA:
       return "Consegna - in attesa di verifica";
     case States.VERIFICHE_CONSEGNA:
@@ -52,6 +56,7 @@ function niceStateLabel(state?: StateCode) {
 
 function variantFromState(state?: StateCode): VisibleStatus["variant"] {
   if (!state) return "secondary";
+  if (state === States.BOZZA) return "secondary";
   if (state === States.CONSEGNATO) return "success";
   if (state === States.APPROVATO) return "success";
 
@@ -67,6 +72,7 @@ function variantFromState(state?: StateCode): VisibleStatus["variant"] {
     state === States.DA_VALIDARE_BO ||
     state === States.DA_VALIDARE_BOF ||
     state === States.DA_VALIDARE_BOU ||
+    state === States.FASE_FINALE ||
     state === States.DA_VALIDARE_CONSEGNA
   )
     return "warning";
@@ -122,8 +128,12 @@ function firstReviewBranchState(f: Fascicolo): StateCode | undefined {
 export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
   const overall = getOverallState(f);
 
+  if (overall === States.BOZZA) {
+    return { label: niceStateLabel(overall), variant: variantFromState(overall), code: overall };
+  }
+
   // se siamo già oltre la validazione BO, tutti vedono lo stato macro
-  if (overall && [States.NUOVO, States.APPROVATO, States.DA_VALIDARE_CONSEGNA, States.VERIFICHE_CONSEGNA, States.DA_RIVEDERE_VRC, States.CONSEGNATO].includes(overall)) {
+  if (overall && [States.NUOVO, States.APPROVATO, States.FASE_FINALE, States.DA_VALIDARE_CONSEGNA, States.VERIFICHE_CONSEGNA, States.DA_RIVEDERE_VRC, States.CONSEGNATO].includes(overall)) {
     return { label: niceStateLabel(overall), variant: variantFromState(overall), code: overall };
   }
 

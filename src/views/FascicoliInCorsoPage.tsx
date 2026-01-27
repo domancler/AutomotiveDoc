@@ -11,33 +11,13 @@ import { States, type StateCode } from "@/workflow/states";
 import type { Fascicolo } from "@/mock/fascicoli";
 import type { Role } from "@/auth/roles";
 
-const OPERATE_ACTIONS: Action[] = [
-  // commerciale
-  "FASCICOLO.EDIT_OWN",
-  "FASCICOLO.SEND_AS_COMM",
-  "FASCICOLO.REQUEST_REOPEN",
-
-  // backoffice (dopo presa in carico)
-  "FASCICOLO.VALIDATE_BO",
-  "FASCICOLO.VALIDATE_BOF",
-  "FASCICOLO.VALIDATE_BOU",
-  "FASCICOLO.REQUEST_REVIEW_BO",
-  "FASCICOLO.REQUEST_REVIEW_BOF",
-  "FASCICOLO.REQUEST_REVIEW_BOU",
-  "FASCICOLO.REOPEN",
-
-  // consegna (dopo presa in carico)
-  "DELIVERY.UPLOAD",
-  "DELIVERY.SEND_TO_VRC",
-
-  // controllo consegna (dopo presa in carico)
-  "VRC.VALIDATE",
-  "VRC.REQUEST_FIX",
-];
+// "In corso" = solo fascicoli che in questo momento l'utente ha in mano (owner/presa in carico per la fase)
 
 
 function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
   switch (stato) {
+    case "Bozza":
+      return States.BOZZA;
     case "In compilazione":
       return States.NUOVO;
     case "In approvazione":
@@ -80,7 +60,7 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
 
   return {
     state,
-    ownerId: anyF.ownerId ?? (f.assegnatario ? String(f.assegnatario).toLowerCase() : undefined),
+    ownerId: anyF.ownerId ?? (f.ownerId ?? undefined),
     hasFinanziamento: anyF.hasFinanziamento ?? !!anyF.workflow?.bof,
     hasPermuta: anyF.hasPermuta ?? !!anyF.workflow?.bou,
     inChargeBO: anyF.inChargeBO ?? null,
@@ -88,12 +68,36 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
     inChargeBOU: anyF.inChargeBOU ?? null,
     inChargeDelivery: anyF.inChargeDelivery ?? null,
     inChargeVRC: anyF.inChargeVRC ?? null,
+    deliverySentToVRC: anyF.deliverySentToVRC ?? !!(f as any).deliverySentToVRC,
   };
 }
 
-function canModifyFascicolo(f: Fascicolo, user: { id: string; username: string; role: Role }) {
+function isInCorsoForUser(f: Fascicolo, user: { id: string; username: string; role: Role }) {
   const ctx = buildCtx(f, user.role);
-  return OPERATE_ACTIONS.some((a) => can(user, a, ctx));
+  switch (user.role) {
+    case "COMMERCIALE":
+      // venditore: owner + stati in cui deve operare
+      return ctx.ownerId === user.id && [
+        States.NUOVO,
+        States.DA_RIVEDERE_BO,
+        States.DA_RIVEDERE_BOF,
+        States.DA_RIVEDERE_BOU,
+        States.APPROVATO,
+      ].includes(ctx.state as any);
+
+    case "BO":
+      return ctx.inChargeBO === user.id && ctx.state === States.VERIFICHE_BO;
+    case "BOF":
+      return ctx.inChargeBOF === user.id && ctx.state === States.VERIFICHE_BOF;
+    case "BOU":
+      return ctx.inChargeBOU === user.id && ctx.state === States.VERIFICHE_BOU;
+    case "CONSEGNATORE":
+      return ctx.inChargeDelivery === user.id && [States.FASE_FINALE, States.DA_RIVEDERE_VRC].includes(ctx.state as any);
+    case "VRC":
+      return ctx.inChargeVRC === user.id && ctx.state === States.VERIFICHE_CONSEGNA;
+    default:
+      return false;
+  }
 }
 
 export function FascicoliInCorsoPage() {
@@ -105,8 +109,7 @@ export function FascicoliInCorsoPage() {
   const base = useMemo(
     () => {
       if (!user) return [];
-      // 🔥 “In corso” = solo fascicoli su cui l’utente corrente può fare azioni (take, invio, upload, validazioni...)
-      return fascicoli.filter((f) => canModifyFascicolo(f, user));
+      return fascicoli.filter((f) => isInCorsoForUser(f, user));
     },
     [fascicoli, user],
   );

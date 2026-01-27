@@ -24,6 +24,21 @@ export type FascicoloContext = {
   inChargeBOU?: string | null;
   inChargeDelivery?: string | null;
   inChargeVRC?: string | null;
+
+  /** true quando l'operatore consegna ha premuto "Procedi" verso controllo consegna */
+  deliverySentToVRC?: boolean;
+};
+
+const TAKE_BY_ROLE: Record<Role, Action | null> = {
+  ADMIN: null,
+  AMMINISTRATIVO: null,
+  RESPONSABILE: null,
+  COMMERCIALE: "FASCICOLO.TAKE_COMM",
+  BO: "FASCICOLO.TAKE_BO",
+  BOF: "FASCICOLO.TAKE_BOF",
+  BOU: "FASCICOLO.TAKE_BOU",
+  CONSEGNATORE: "DELIVERY.TAKE",
+  VRC: "VRC.TAKE",
 };
 
 // helper: se non hai ancora gli Sxx nel mock, puoi passare undefined e la UI mostrerà solo le azioni “non stateful”
@@ -78,7 +93,29 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   }
 
   if (action === "FASCICOLO.VIEW_OWN") {
-    return role === "COMMERCIALE";
+    // Pagina dettaglio: permetti l'accesso se l'utente ha il fascicolo "in mano"
+    // oppure se lo può prendere in carico (tab "Disponibili").
+    if (!fascicolo) return false;
+
+    // se già in carico (qualunque ruolo)
+    if (
+      fascicolo.ownerId === user.id ||
+      fascicolo.inChargeBO === user.id ||
+      fascicolo.inChargeBOF === user.id ||
+      fascicolo.inChargeBOU === user.id ||
+      fascicolo.inChargeDelivery === user.id ||
+      fascicolo.inChargeVRC === user.id
+    )
+      return true;
+
+    // se disponibile a presa in carico
+    const takeAction = TAKE_BY_ROLE[role];
+    return takeAction ? can(user, takeAction, fascicolo) : false;
+  }
+
+  // presa in carico iniziale (COMMERCIALE)
+  if (action === "FASCICOLO.TAKE_COMM") {
+    return role === "COMMERCIALE" && state === States.BOZZA && !fascicolo?.ownerId;
   }
 
   // COMMERCIALE
@@ -167,14 +204,14 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
     if (action === "DELIVERY.UPLOAD") {
       return (
         inCharge === user.id &&
-        (state === States.DA_VALIDARE_CONSEGNA || state === States.DA_RIVEDERE_VRC)
+        (state === States.FASE_FINALE || state === States.DA_RIVEDERE_VRC)
       );
     }
 
     if (action === "DELIVERY.SEND_TO_VRC") {
       return (
         inCharge === user.id &&
-        (state === States.DA_VALIDARE_CONSEGNA || state === States.DA_RIVEDERE_VRC)
+        (state === States.FASE_FINALE || state === States.DA_RIVEDERE_VRC)
       );
     }
 
@@ -185,7 +222,9 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   if (role === "VRC") {
     const inCharge = fascicolo?.inChargeVRC ?? null;
 
-    if (action === "VRC.TAKE") return state === States.DA_VALIDARE_CONSEGNA && !inCharge;
+    if (action === "VRC.TAKE") {
+      return state === States.DA_VALIDARE_CONSEGNA && !inCharge && !!fascicolo?.deliverySentToVRC;
+    }
     if (action === "VRC.VALIDATE") return state === States.VERIFICHE_CONSEGNA && inCharge === user.id;
     if (action === "VRC.REQUEST_FIX") return state === States.VERIFICHE_CONSEGNA && inCharge === user.id;
 

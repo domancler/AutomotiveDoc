@@ -8,7 +8,8 @@ function nowIso() {
 }
 
 function normalizeStatoFromOverall(overall?: StateCode): Fascicolo["stato"] {
-  if (!overall) return "In compilazione";
+  if (!overall) return "Bozza";
+  if (overall === States.BOZZA) return "Bozza";
   if (overall === States.NUOVO) return "In compilazione";
   if (overall === States.CONSEGNATO) return "Firmato";
   if (overall === States.APPROVATO) return "Firmato";
@@ -46,10 +47,10 @@ export function applyWorkflowAction(
   const actorName = actor.name || actor.role || "Utente";
   const actorId = actor.id ?? null;
   const wf = f.workflow ?? {
-    overall: States.NUOVO,
-    bo: States.NUOVO,
-    bof: f.hasFinanziamento ? States.NUOVO : undefined,
-    bou: f.hasPermuta ? States.NUOVO : undefined,
+    overall: States.BOZZA,
+    bo: States.BOZZA,
+    bof: f.hasFinanziamento ? States.BOZZA : undefined,
+    bou: f.hasPermuta ? States.BOZZA : undefined,
   };
 
   let next: Fascicolo = {
@@ -87,6 +88,23 @@ export function applyWorkflowAction(
   };
 
   switch (action) {
+    case "FASCICOLO.TAKE_COMM": {
+      // Bozza -> Nuovo: presa in carico iniziale del venditore
+      setOverall(States.NUOVO);
+      setBranch("bo", States.NUOVO);
+      if (req.bof) setBranch("bof", States.NUOVO);
+      if (req.bou) setBranch("bou", States.NUOVO);
+
+      next = {
+        ...next,
+        ownerId: actorId,
+        assegnatario: actor.name ?? next.assegnatario,
+        progress: Math.max(next.progress ?? 0, 10),
+        timeline: pushTimeline(next, actorName, "Presa in carico (venditore)"),
+      };
+      return next;
+    }
+
     // --- COMMERCIALE ---
     case "FASCICOLO.SEND_AS_COMM": {
       // fan-out: entra nella fase BO e imposta i rami richiesti in attesa presa in carico
@@ -118,6 +136,7 @@ export function applyWorkflowAction(
       // rimane in fase BO: venditore vedrà “Da controllare”
       next = {
         ...next,
+        inChargeBO: null,
         timeline: pushTimeline(next, actorName, "BO Anagrafico: richieste integrazioni"),
       };
       return next;
@@ -126,6 +145,7 @@ export function applyWorkflowAction(
       setBranch("bo", States.VALIDATO_BO);
       next = {
         ...next,
+        inChargeBO: null,
         progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Anagrafico: validato"),
       };
@@ -147,6 +167,7 @@ export function applyWorkflowAction(
       setBranch("bof", States.DA_RIVEDERE_BOF);
       next = {
         ...next,
+        inChargeBOF: null,
         timeline: pushTimeline(next, actorName, "BO Finanziario: richieste integrazioni"),
       };
       return next;
@@ -155,6 +176,7 @@ export function applyWorkflowAction(
       setBranch("bof", States.VALIDATO_BOF);
       next = {
         ...next,
+        inChargeBOF: null,
         progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Finanziario: validato"),
       };
@@ -176,6 +198,7 @@ export function applyWorkflowAction(
       setBranch("bou", States.DA_RIVEDERE_BOU);
       next = {
         ...next,
+        inChargeBOU: null,
         timeline: pushTimeline(next, actorName, "BO Permuta: richieste integrazioni"),
       };
       return next;
@@ -184,6 +207,7 @@ export function applyWorkflowAction(
       setBranch("bou", States.VALIDATO_BOU);
       next = {
         ...next,
+        inChargeBOU: null,
         progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Permuta: validato"),
       };
@@ -193,20 +217,24 @@ export function applyWorkflowAction(
 
     // --- Consegna ---
     case "DELIVERY.TAKE": {
-      // da APPROVATO -> fase consegna in attesa di verifica (VRC)
-      setOverall(States.DA_VALIDARE_CONSEGNA);
+      // da APPROVATO -> fase finale (in mano all'operatore consegna)
+      setOverall(States.FASE_FINALE);
       next = {
         ...next,
         inChargeDelivery: actorId,
+        deliverySentToVRC: false,
         progress: Math.max(next.progress ?? 0, 90),
         timeline: pushTimeline(next, actorName, "Operatore consegna: presa in carico"),
       };
       return next;
     }
     case "DELIVERY.SEND_TO_VRC": {
+      // operatore consegna -> invio a controllo consegna
       setOverall(States.DA_VALIDARE_CONSEGNA);
       next = {
         ...next,
+        deliverySentToVRC: true,
+        inChargeVRC: null,
         timeline: pushTimeline(next, actorName, "Inviato a Controllo consegna"),
       };
       return next;
@@ -225,6 +253,8 @@ export function applyWorkflowAction(
       setOverall(States.DA_RIVEDERE_VRC);
       next = {
         ...next,
+        inChargeVRC: null,
+        deliverySentToVRC: false,
         timeline: pushTimeline(next, actorName, "Controllo consegna: richieste integrazioni"),
       };
       return next;

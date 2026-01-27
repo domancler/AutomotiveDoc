@@ -1,20 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useFascicolo } from "@/mock/useFascicoliStore";
-import { addDocumento, removeDocumento } from "@/mock/runtimeFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
 import { Badge } from "@/ui/components/badge";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
-import { ConfirmDialog } from "@/ui/components/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Progress } from "@/ui/components/progress";
 import { cn, formatEuro } from "@/lib/utils";
-import { FileUp, CheckCircle2, Clock3, XCircle, Car, User, CalendarDays, Trash2 } from "lucide-react";
+import { FileUp, CheckCircle2, Clock3, Trash2, Car, User, CalendarDays } from "lucide-react";
 import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
 import { useAuth } from "@/auth/AuthProvider";
 import { branchStatusBadges, visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
 import { statoVariant } from "@/ui/fascicoli/status";
+import { States } from "@/workflow/states";
+import type { DocumentoTipo } from "@/mock/fascicoli";
+import { addDocumentoRow, markDocumentoPresente, removeDocumentoRow } from "@/mock/runtimeFascicoliStore";
+import { ConfirmDialog } from "@/ui/components/confirm-dialog";
 
 function formatDateIT(iso: string) {
   try {
@@ -35,7 +37,12 @@ export function FascicoloDettaglioPage() {
 
   const [tab, setTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
-  const [newDocNote, setNewDocNote] = useState("");
+
+  // --- Documenti: aggiunta tipologie + paginazione ---
+  const [docTipo, setDocTipo] = useState<DocumentoTipo>("Documento identità");
+  const [docRichiesto, setDocRichiesto] = useState(true);
+  const [docNote, setDocNote] = useState("");
+  const [docsPage, setDocsPage] = useState(0);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; label: string } | null>(null);
 
   if (!fascicolo) {
@@ -53,49 +60,30 @@ export function FascicoloDettaglioPage() {
     return { required, present };
   })();
 
+  const DOCS_PAGE_SIZE = 8;
+  const docsTotalPages = Math.max(1, Math.ceil(fascicolo.documenti.length / DOCS_PAGE_SIZE));
+  const docsRows = useMemo(() => {
+    const start = docsPage * DOCS_PAGE_SIZE;
+    return fascicolo.documenti.slice(start, start + DOCS_PAGE_SIZE);
+  }, [fascicolo.documenti, docsPage]);
+
+  useEffect(() => {
+    const last = Math.max(0, docsTotalPages - 1);
+    if (docsPage > last) setDocsPage(last);
+  }, [docsPage, docsTotalPages]);
+
   const vs = fascicolo.workflow ? visibleStatusForRole(fascicolo, user?.role as any) : null;
-  const showBackofficeTab = Boolean(fascicolo.workflow);
-
-  const DOCUMENTO_TIPI = [
-    "Contratto di vendita",
-    "Privacy",
-    "Consenso marketing",
-    "Documento identità",
-    "Patente",
-    "Prova pagamento",
-  ] as const;
-
-  const [selectedTipo, setSelectedTipo] = useState<(typeof DOCUMENTO_TIPI)[number]>(DOCUMENTO_TIPI[0]);
-
-  const PAGE_SIZE = 8;
-  const [docsPage, setDocsPage] = useState(1);
-
-  const totalDocs = fascicolo.documenti.length;
-  const totalPages = Math.max(1, Math.ceil(totalDocs / PAGE_SIZE));
-  const pageStart = (docsPage - 1) * PAGE_SIZE;
-  const pagedDocs = fascicolo.documenti.slice(pageStart, pageStart + PAGE_SIZE);
-
-  // Se rimuovi documenti e la pagina corrente esce dal range, rientra nel range.
-  useEffect(() => {
-    setDocsPage((p) => Math.min(Math.max(1, p), totalPages));
-  }, [totalPages]);
-
-  // se cambia il numero documenti (aggiunta/rimozione), evita di restare su una pagina "vuota"
-  useEffect(() => {
-    const nextTotalPages = Math.max(1, Math.ceil(totalDocs / PAGE_SIZE));
-    setDocsPage((p) => Math.min(p, nextTotalPages));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalDocs]);
-
-  const docLabelForRow = (() => {
-    const seen = new Map<string, number>();
-    return (tipo: string) => {
-      const n = (seen.get(tipo) ?? 0) + 1;
-      seen.set(tipo, n);
-      // se è la prima occorrenza, niente suffix; altrimenti (2), (3)...
-      return n === 1 ? tipo : `${tipo} (${n})`;
-    };
-  })();
+  const showBackofficeTab = Boolean(
+    fascicolo.workflow &&
+      fascicolo.workflow.overall !== States.BOZZA &&
+      fascicolo.workflow.overall !== States.NUOVO &&
+      fascicolo.workflow.overall !== States.APPROVATO &&
+      fascicolo.workflow.overall !== States.FASE_FINALE &&
+      fascicolo.workflow.overall !== States.DA_VALIDARE_CONSEGNA &&
+      fascicolo.workflow.overall !== States.VERIFICHE_CONSEGNA &&
+      fascicolo.workflow.overall !== States.DA_RIVEDERE_VRC &&
+      fascicolo.workflow.overall !== States.CONSEGNATO
+  );
 
   return (
     <div className="space-y-6">
@@ -210,49 +198,64 @@ export function FascicoloDettaglioPage() {
           <Card>
             <CardHeader>
               <CardTitle>Documenti</CardTitle>
-              <CardDescription>Caricamento documenti</CardDescription>
+              <CardDescription>Gestione tipologie e allegati</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium">Aggiungi tipologia</div>
-                  <div className="text-xs text-muted-foreground">Puoi inserire una nota (es. "cointestatario") durante l’aggiunta.</div>
-                </div>
+              <div className="rounded-lg border p-3">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">Tipologia</div>
+                    <select
+                      className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                      value={docTipo}
+                      onChange={(e) => setDocTipo(e.target.value as DocumentoTipo)}
+                    >
+                      <option value="Contratto di vendita">Contratto di vendita</option>
+                      <option value="Privacy">Privacy</option>
+                      <option value="Consenso marketing">Consenso marketing</option>
+                      <option value="Documento identità">Documento identità</option>
+                      <option value="Patente">Patente</option>
+                      <option value="Prova pagamento">Prova pagamento</option>
+                    </select>
+                  </div>
 
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                  <select
-                    className="h-9 w-full rounded-md border bg-background px-3 text-sm sm:w-[240px]"
-                    value={selectedTipo}
-                    onChange={(e) => setSelectedTipo(e.target.value as any)}
-                  >
-                    {DOCUMENTO_TIPI.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  <Input
-                    value={newDocNote}
-                    onChange={(e) => setNewDocNote(e.target.value)}
-                    placeholder="Note (es. cointestatario)"
-                    className="h-9 w-full sm:w-[260px]"
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      addDocumento({
-                        fascicoloId: fascicolo.id,
-                        tipo: selectedTipo as any,
-                        note: newDocNote,
-                        actor: user?.name ?? user?.username ?? "Utente",
-                      });
-                      setNewDocNote("");
-                      setDocsPage(1);
-                    }}
-                  >
-                    Aggiungi
-                  </Button>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">Note (opzionale)</div>
+                    <Input value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="Es: cointestatario" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">Richiesto</div>
+                    <div className="flex h-9 items-center">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={docRichiesto}
+                          onChange={(e) => setDocRichiesto(e.target.checked)}
+                          className="peer sr-only"
+                        />
+                        <span className="relative inline-flex h-6 w-11 items-center rounded-full border bg-muted transition-colors peer-checked:bg-foreground/80">
+                          <span className="inline-block h-5 w-5 translate-x-1 rounded-full bg-background shadow transition peer-checked:translate-x-5" />
+                        </span>
+                        <span className="text-sm text-muted-foreground">{docRichiesto ? "Sì" : "No"}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex items-end justify-end">
+                    <Button
+                      onClick={() => {
+                        addDocumentoRow(fascicolo.id, {
+                          tipo: docTipo,
+                          richiesto: docRichiesto,
+                          note: docNote.trim() ? docNote.trim() : undefined,
+                        });
+                        setDocNote("");
+                      }}
+                    >
+                      Aggiungi tipologia
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -264,15 +267,12 @@ export function FascicoloDettaglioPage() {
                       <th className="px-4 py-3 text-left font-medium">Richiesto</th>
                       <th className="px-4 py-3 text-left font-medium">Presente</th>
                       <th className="px-4 py-3 text-left font-medium">Note</th>
-                      <th className="px-4 py-3 text-left font-medium">Azioni</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pagedDocs.map((d) => {
-                      const rowLabel = docLabelForRow(d.tipo);
-                      return (
-                        <tr key={d.id} className="border-t">
-                          <td className="px-4 py-3 font-medium">{rowLabel}</td>
+                    {docsRows.map((d) => (
+                      <tr key={d.id} className="border-t">
+                        <td className="px-4 py-3 font-medium">{d.tipo}</td>
                         <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
                         <td className="px-4 py-3">
                           <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
@@ -281,91 +281,64 @@ export function FascicoloDettaglioPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {d.note ? (
-                            <span className="text-foreground">{d.note}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" size="sm" disabled>
-                              <FileUp className="h-4 w-4" /> Upload
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setRemoveTarget({ id: d.id, label: rowLabel });
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" /> Rimuovi
-                            </Button>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="text-muted-foreground">{d.note?.trim() ? d.note : "—"}</div>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => markDocumentoPresente(fascicolo.id, d.id)}
+                                disabled={d.presente}
+                              >
+                                <FileUp className="h-4 w-4" /> Carica
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </td>
-                        </tr>
-                      );
-                    })}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
 
-              {totalDocs > PAGE_SIZE && (
-                <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-xs text-muted-foreground">
-                    Mostrati {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, totalDocs)} di {totalDocs}
+              {docsTotalPages > 1 && (
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="text-sm text-muted-foreground">
+                    Pagina <span className="font-medium text-foreground">{docsPage + 1}</span> / {docsTotalPages}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={docsPage <= 1}
-                      onClick={() => setDocsPage((p) => Math.max(1, p - 1))}
-                    >
-                      Indietro
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setDocsPage((p) => Math.max(0, p - 1))} disabled={docsPage === 0}>
+                      Precedente
                     </Button>
-                    <div className="text-xs text-muted-foreground">
-                      Pagina {docsPage} / {totalPages}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={docsPage >= totalPages}
-                      onClick={() => setDocsPage((p) => Math.min(totalPages, p + 1))}
-                    >
-                      Avanti
+                    <Button variant="outline" size="sm" onClick={() => setDocsPage((p) => Math.min(docsTotalPages - 1, p + 1))} disabled={docsPage >= docsTotalPages - 1}>
+                      Successiva
                     </Button>
                   </div>
                 </div>
               )}
+
+              <ConfirmDialog
+                open={!!removeTarget}
+                title="Eliminare tipologia?"
+                description="Stai per eliminare la tipologia dal fascicolo. Se è presente anche un documento caricato, verrà rimosso insieme alla riga."
+                confirmText="Elimina"
+                cancelText="Annulla"
+                onOpenChange={(o) => !o && setRemoveTarget(null)}
+                onConfirm={() => {
+                  if (!removeTarget) return;
+                  removeDocumentoRow(fascicolo.id, removeTarget.id);
+                  setRemoveTarget(null);
+                }}
+              />
             </CardContent>
           </Card>
-
-          <ConfirmDialog
-            open={Boolean(removeTarget)}
-            title="Rimuovere tipologia?"
-            description={
-              removeTarget
-                ? `Vuoi rimuovere "${removeTarget.label}"? Se confermi, verrà eliminata la tipologia anche se è già presente un documento caricato.`
-                : undefined
-            }
-            confirmText="Sì, rimuovi"
-            cancelText="Annulla"
-            tone="destructive"
-            onOpenChange={(open) => {
-              if (!open) setRemoveTarget(null);
-            }}
-            onConfirm={() => {
-              if (!removeTarget) return;
-              removeDocumento({
-                fascicoloId: fascicolo.id,
-                documentoId: removeTarget.id,
-                actor: user?.name ?? user?.username ?? "Utente",
-              });
-            }}
-          />
         </TabsContent>
         <TabsContent value="timeline">
           <Card>
@@ -397,7 +370,7 @@ export function FascicoloDettaglioPage() {
           <Card>
             <CardHeader>
               <CardTitle>Note</CardTitle>
-              <CardDescription>Commenti operativi</CardDescription>
+              <CardDescription>Commenti operativi (mock)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">

@@ -4,14 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Badge } from "@/ui/components/badge";
 import { formatEuro } from "@/lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-const CHART_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"]; 
-
 
 export function DashboardPage() {
+  const COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#22d3ee", "#fb7185"];
   const fascicoli = useFascicoli();
   const kpi = useMemo(() => {
     const total = fascicoli.length;
-    const inCorso = fascicoli.filter((f) => f.stato === "In compilazione" || f.stato === "In approvazione").length;
+    const inCorso = fascicoli.filter((f) => f.stato === "Bozza" || f.stato === "In compilazione" || f.stato === "In approvazione").length;
     const firmati = fascicoli.filter((f) => f.stato === "Firmato").length;
     const valoreTot = fascicoli.reduce((sum, f) => sum + f.valore, 0);
     return { total, inCorso, firmati, valoreTot };
@@ -61,7 +60,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>In corso</CardTitle>
-            <CardDescription>In compilazione / approvazione</CardDescription>
+            <CardDescription>Bozza / compilazione / approvazione</CardDescription>
           </CardHeader>
           <CardContent className="flex items-end justify-between">
             <div className="text-3xl font-semibold">{kpi.inCorso}</div>
@@ -97,8 +96,8 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={statoData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}>
-                  {statoData.map((_, i) => (
-                    <Cell key={`cell-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  {statoData.map((_, idx) => (
+                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -120,7 +119,7 @@ export function DashboardPage() {
                 <XAxis dataKey="name" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" fill="#60a5fa" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

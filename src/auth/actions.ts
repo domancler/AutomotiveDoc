@@ -4,6 +4,9 @@ export type Action =
   | "FASCICOLO.VIEW_ALL"
   | "FASCICOLO.VIEW_OWN"
 
+  // presa in carico iniziale (venditore)
+  | "FASCICOLO.TAKE_COMM"
+
   // commerciale
   | "FASCICOLO.EDIT_OWN"
   | "FASCICOLO.SEND_AS_COMM"
