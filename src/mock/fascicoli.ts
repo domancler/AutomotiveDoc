@@ -25,6 +25,8 @@ export type Documento = {
   tipo: DocumentoTipo;
   richiesto: boolean;
   presente: boolean;
+  /** opzionale: indicazioni extra (es. cointestatario, note operative) */
+  note?: string;
   firmato?: boolean;
   updatedAt: string; // ISO
 };

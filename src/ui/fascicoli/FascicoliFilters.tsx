@@ -369,7 +369,7 @@ export function FascicoliFilters({
               ))}
             </FilterBlock>
 
-            <FilterBlock title="Data creazione">
+            <FilterBlock title="Data creazione" className="md:col-span-2 xl:col-span-3">
               <div className="flex w-full flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-xs text-muted-foreground">Preset:</div>

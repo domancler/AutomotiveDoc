@@ -4,3 +4,4 @@ export * from "./badge";
 export * from "./input";
 export * from "./progress";
 export * from "./tabs";
+export * from "./confirm-dialog";

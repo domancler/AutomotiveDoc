@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useFascicolo } from "@/mock/useFascicoliStore";
+import { addDocumento, removeDocumento } from "@/mock/runtimeFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
 import { Badge } from "@/ui/components/badge";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+import { ConfirmDialog } from "@/ui/components/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Progress } from "@/ui/components/progress";
 import { cn, formatEuro } from "@/lib/utils";
-import { FileUp, CheckCircle2, Clock3, XCircle, Car, User, CalendarDays } from "lucide-react";
+import { FileUp, CheckCircle2, Clock3, XCircle, Car, User, CalendarDays, Trash2 } from "lucide-react";
 import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
 import { useAuth } from "@/auth/AuthProvider";
 import { branchStatusBadges, visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
@@ -33,6 +35,8 @@ export function FascicoloDettaglioPage() {
 
   const [tab, setTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
+  const [newDocNote, setNewDocNote] = useState("");
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; label: string } | null>(null);
 
   if (!fascicolo) {
     return (
@@ -46,12 +50,52 @@ export function FascicoloDettaglioPage() {
   const docStats = (() => {
     const required = fascicolo.documenti.filter((d) => d.richiesto).length;
     const present = fascicolo.documenti.filter((d) => d.presente).length;
-    const signed = fascicolo.documenti.filter((d) => d.firmato).length;
-    return { required, present, signed };
+    return { required, present };
   })();
 
   const vs = fascicolo.workflow ? visibleStatusForRole(fascicolo, user?.role as any) : null;
   const showBackofficeTab = Boolean(fascicolo.workflow);
+
+  const DOCUMENTO_TIPI = [
+    "Contratto di vendita",
+    "Privacy",
+    "Consenso marketing",
+    "Documento identità",
+    "Patente",
+    "Prova pagamento",
+  ] as const;
+
+  const [selectedTipo, setSelectedTipo] = useState<(typeof DOCUMENTO_TIPI)[number]>(DOCUMENTO_TIPI[0]);
+
+  const PAGE_SIZE = 8;
+  const [docsPage, setDocsPage] = useState(1);
+
+  const totalDocs = fascicolo.documenti.length;
+  const totalPages = Math.max(1, Math.ceil(totalDocs / PAGE_SIZE));
+  const pageStart = (docsPage - 1) * PAGE_SIZE;
+  const pagedDocs = fascicolo.documenti.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Se rimuovi documenti e la pagina corrente esce dal range, rientra nel range.
+  useEffect(() => {
+    setDocsPage((p) => Math.min(Math.max(1, p), totalPages));
+  }, [totalPages]);
+
+  // se cambia il numero documenti (aggiunta/rimozione), evita di restare su una pagina "vuota"
+  useEffect(() => {
+    const nextTotalPages = Math.max(1, Math.ceil(totalDocs / PAGE_SIZE));
+    setDocsPage((p) => Math.min(p, nextTotalPages));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalDocs]);
+
+  const docLabelForRow = (() => {
+    const seen = new Map<string, number>();
+    return (tipo: string) => {
+      const n = (seen.get(tipo) ?? 0) + 1;
+      seen.set(tipo, n);
+      // se è la prima occorrenza, niente suffix; altrimenti (2), (3)...
+      return n === 1 ? tipo : `${tipo} (${n})`;
+    };
+  })();
 
   return (
     <div className="space-y-6">
@@ -104,7 +148,7 @@ export function FascicoloDettaglioPage() {
         <CardHeader>
           <CardTitle>Avanzamento</CardTitle>
           <CardDescription>
-            Documenti richiesti: {docStats.required} · presenti: {docStats.present} · firmati: {docStats.signed}
+            Documenti richiesti: {docStats.required} · presenti: {docStats.present}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -166,9 +210,52 @@ export function FascicoloDettaglioPage() {
           <Card>
             <CardHeader>
               <CardTitle>Documenti</CardTitle>
-              <CardDescription>Caricamento / firma (mock)</CardDescription>
+              <CardDescription>Caricamento documenti</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium">Aggiungi tipologia</div>
+                  <div className="text-xs text-muted-foreground">Puoi inserire una nota (es. "cointestatario") durante l’aggiunta.</div>
+                </div>
+
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                  <select
+                    className="h-9 w-full rounded-md border bg-background px-3 text-sm sm:w-[240px]"
+                    value={selectedTipo}
+                    onChange={(e) => setSelectedTipo(e.target.value as any)}
+                  >
+                    {DOCUMENTO_TIPI.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    value={newDocNote}
+                    onChange={(e) => setNewDocNote(e.target.value)}
+                    placeholder="Note (es. cointestatario)"
+                    className="h-9 w-full sm:w-[260px]"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      addDocumento({
+                        fascicoloId: fascicolo.id,
+                        tipo: selectedTipo as any,
+                        note: newDocNote,
+                        actor: user?.name ?? user?.username ?? "Utente",
+                      });
+                      setNewDocNote("");
+                      setDocsPage(1);
+                    }}
+                  >
+                    Aggiungi
+                  </Button>
+                </div>
+              </div>
+
               <div className="overflow-hidden rounded-lg border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/60 text-muted-foreground">
@@ -176,14 +263,16 @@ export function FascicoloDettaglioPage() {
                       <th className="px-4 py-3 text-left font-medium">Tipo</th>
                       <th className="px-4 py-3 text-left font-medium">Richiesto</th>
                       <th className="px-4 py-3 text-left font-medium">Presente</th>
-                      <th className="px-4 py-3 text-left font-medium">Firmato</th>
+                      <th className="px-4 py-3 text-left font-medium">Note</th>
                       <th className="px-4 py-3 text-left font-medium">Azioni</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {fascicolo.documenti.map((d) => (
-                      <tr key={d.id} className="border-t">
-                        <td className="px-4 py-3 font-medium">{d.tipo}</td>
+                    {pagedDocs.map((d) => {
+                      const rowLabel = docLabelForRow(d.tipo);
+                      return (
+                        <tr key={d.id} className="border-t">
+                          <td className="px-4 py-3 font-medium">{rowLabel}</td>
                         <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
                         <td className="px-4 py-3">
                           <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
@@ -192,16 +281,10 @@ export function FascicoloDettaglioPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {d.firmato === undefined ? "—" : d.firmato ? (
-                            <span className="inline-flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                              Sì
-                            </span>
+                          {d.note ? (
+                            <span className="text-foreground">{d.note}</span>
                           ) : (
-                            <span className="inline-flex items-center gap-2 text-muted-foreground">
-                              <XCircle className="h-4 w-4" />
-                              No
-                            </span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -209,22 +292,80 @@ export function FascicoloDettaglioPage() {
                             <Button variant="outline" size="sm" disabled>
                               <FileUp className="h-4 w-4" /> Upload
                             </Button>
-                            <Button variant="secondary" size="sm" disabled>
-                              Firma
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setRemoveTarget({ id: d.id, label: rowLabel });
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" /> Rimuovi
                             </Button>
                           </div>
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                Qui puoi agganciare la logica reale (upload su backend, firma digitale, workflow backoffice, ecc.).
-              </p>
+              {totalDocs > PAGE_SIZE && (
+                <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    Mostrati {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, totalDocs)} di {totalDocs}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={docsPage <= 1}
+                      onClick={() => setDocsPage((p) => Math.max(1, p - 1))}
+                    >
+                      Indietro
+                    </Button>
+                    <div className="text-xs text-muted-foreground">
+                      Pagina {docsPage} / {totalPages}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={docsPage >= totalPages}
+                      onClick={() => setDocsPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Avanti
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          <ConfirmDialog
+            open={Boolean(removeTarget)}
+            title="Rimuovere tipologia?"
+            description={
+              removeTarget
+                ? `Vuoi rimuovere "${removeTarget.label}"? Se confermi, verrà eliminata la tipologia anche se è già presente un documento caricato.`
+                : undefined
+            }
+            confirmText="Sì, rimuovi"
+            cancelText="Annulla"
+            tone="destructive"
+            onOpenChange={(open) => {
+              if (!open) setRemoveTarget(null);
+            }}
+            onConfirm={() => {
+              if (!removeTarget) return;
+              removeDocumento({
+                fascicoloId: fascicolo.id,
+                documentoId: removeTarget.id,
+                actor: user?.name ?? user?.username ?? "Utente",
+              });
+            }}
+          />
         </TabsContent>
         <TabsContent value="timeline">
           <Card>
@@ -256,7 +397,7 @@ export function FascicoloDettaglioPage() {
           <Card>
             <CardHeader>
               <CardTitle>Note</CardTitle>
-              <CardDescription>Commenti operativi (mock)</CardDescription>
+              <CardDescription>Commenti operativi</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">

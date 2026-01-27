@@ -259,10 +259,7 @@ function ActionCard({
   const Footer = (
     <div className="mt-auto pt-2 min-h-[32px] text-sm text-muted-foreground leading-snug">
       {!enabled && disabledReason ? (
-        <>
-          <span className="font-medium">Motivo:</span>{" "}
-          <span className="break-words">{disabledReason}</span>
-        </>
+        <span className="break-words">{disabledReason}</span>
       ) : null}
     </div>
   );

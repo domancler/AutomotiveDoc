@@ -3,7 +3,9 @@ import { useFascicoli } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
 import { Badge } from "@/ui/components/badge";
 import { formatEuro } from "@/lib/utils";
-import { PieChart, Pie, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+const CHART_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"]; 
+
 
 export function DashboardPage() {
   const fascicoli = useFascicoli();
@@ -94,7 +96,11 @@ export function DashboardPage() {
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={statoData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} />
+                <Pie data={statoData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}>
+                  {statoData.map((_, i) => (
+                    <Cell key={`cell-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
                 <Tooltip />
                 <Legend />
               </PieChart>
@@ -114,7 +120,7 @@ export function DashboardPage() {
                 <XAxis dataKey="name" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="value" />
+                <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
