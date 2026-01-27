@@ -81,9 +81,13 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
 
   return {
     state,
-    ownerId:
-      anyF.ownerId ??
-      (f.assegnatario ? String(f.assegnatario).toLowerCase() : undefined),
+    ownerId: (() => {
+      if (anyF.ownerId) return anyF.ownerId;
+      const raw = typeof f.assegnatario === "string" ? f.assegnatario.trim() : "";
+      // In dataset/mock usiamo spesso "—" come placeholder UI: non deve essere interpretato come owner.
+      if (!raw || raw === "—" || raw === "-" || raw.toLowerCase() === "nessuno") return undefined;
+      return raw.toLowerCase();
+    })(),
     hasFinanziamento: anyF.hasFinanziamento ?? hasProvaPagamentoDoc(f),
     hasPermuta: anyF.hasPermuta ?? false,
     inChargeBO: anyF.inChargeBO ?? null,
