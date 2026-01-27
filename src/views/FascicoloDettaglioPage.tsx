@@ -17,6 +17,8 @@ import { States } from "@/workflow/states";
 import type { DocumentoTipo } from "@/mock/fascicoli";
 import { addDocumentoRow, markDocumentoPresente, removeDocumentoRow } from "@/mock/runtimeFascicoliStore";
 import { ConfirmDialog } from "@/ui/components/confirm-dialog";
+import { can, type FascicoloContext } from "@/auth/can";
+import type { Action } from "@/auth/actions";
 
 function formatDateIT(iso: string) {
   try {
@@ -59,6 +61,42 @@ export function FascicoloDettaglioPage() {
     const present = fascicolo.documenti.filter((d) => d.presente).length;
     return { required, present };
   })();
+
+  // --- Read-only finché non sei in carico (o non hai permessi operativi nello stato corrente)
+  const ctx: FascicoloContext = useMemo(
+    () => ({
+      state: fascicolo.workflow?.overall,
+      ownerId: fascicolo.ownerId ?? undefined,
+      hasFinanziamento: fascicolo.hasFinanziamento,
+      hasPermuta: fascicolo.hasPermuta,
+      inChargeBO: fascicolo.inChargeBO ?? null,
+      inChargeBOF: fascicolo.inChargeBOF ?? null,
+      inChargeBOU: fascicolo.inChargeBOU ?? null,
+      inChargeDelivery: fascicolo.inChargeDelivery ?? null,
+      inChargeVRC: fascicolo.inChargeVRC ?? null,
+    }),
+    [fascicolo]
+  );
+
+  const allowed = useMemo(() => {
+    return (action: Action) => (user ? can(user as any, action, ctx) : false);
+  }, [user, ctx]);
+
+  const canOperate =
+    allowed("FASCICOLO.EDIT_OWN") ||
+    allowed("FASCICOLO.SEND_AS_COMM") ||
+    allowed("FASCICOLO.VALIDATE_BO") ||
+    allowed("FASCICOLO.REQUEST_REVIEW_BO") ||
+    allowed("FASCICOLO.VALIDATE_BOF") ||
+    allowed("FASCICOLO.REQUEST_REVIEW_BOF") ||
+    allowed("FASCICOLO.VALIDATE_BOU") ||
+    allowed("FASCICOLO.REQUEST_REVIEW_BOU") ||
+    allowed("DELIVERY.UPLOAD") ||
+    allowed("DELIVERY.SEND_TO_VRC") ||
+    allowed("VRC.VALIDATE") ||
+    allowed("VRC.REQUEST_FIX");
+
+  const readOnly = !canOperate;
 
   const DOCS_PAGE_SIZE = 8;
   const docsTotalPages = Math.max(1, Math.ceil(fascicolo.documenti.length / DOCS_PAGE_SIZE));
@@ -201,6 +239,12 @@ export function FascicoloDettaglioPage() {
               <CardDescription>Gestione tipologie e allegati</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              {readOnly && (
+                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  Solo lettura: prendi in carico il fascicolo per aggiungere/rimuovere tipologie e caricare documenti.
+                </div>
+              )}
+
               <div className="rounded-lg border p-3">
                 <div className="grid gap-3 md:grid-cols-4">
                   <div className="space-y-1">
@@ -209,6 +253,7 @@ export function FascicoloDettaglioPage() {
                       className="h-9 w-full rounded-md border bg-background px-3 text-sm"
                       value={docTipo}
                       onChange={(e) => setDocTipo(e.target.value as DocumentoTipo)}
+                      disabled={readOnly}
                     >
                       <option value="Contratto di vendita">Contratto di vendita</option>
                       <option value="Privacy">Privacy</option>
@@ -221,7 +266,12 @@ export function FascicoloDettaglioPage() {
 
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">Note (opzionale)</div>
-                    <Input value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="Es: cointestatario" />
+                    <Input
+                      value={docNote}
+                      onChange={(e) => setDocNote(e.target.value)}
+                      placeholder="Es: cointestatario"
+                      disabled={readOnly}
+                    />
                   </div>
 
                   <div className="space-y-1">
@@ -233,6 +283,7 @@ export function FascicoloDettaglioPage() {
                           checked={docRichiesto}
                           onChange={(e) => setDocRichiesto(e.target.checked)}
                           className="peer sr-only"
+                          disabled={readOnly}
                         />
                         <span className="relative inline-flex h-6 w-11 items-center rounded-full border bg-muted transition-colors peer-checked:bg-foreground/80">
                           <span className="inline-block h-5 w-5 translate-x-1 rounded-full bg-background shadow transition peer-checked:translate-x-5" />
@@ -252,6 +303,7 @@ export function FascicoloDettaglioPage() {
                         });
                         setDocNote("");
                       }}
+                      disabled={readOnly}
                     >
                       Aggiungi tipologia
                     </Button>
@@ -288,7 +340,7 @@ export function FascicoloDettaglioPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => markDocumentoPresente(fascicolo.id, d.id)}
-                                disabled={d.presente}
+                                disabled={readOnly || d.presente}
                               >
                                 <FileUp className="h-4 w-4" /> Carica
                               </Button>
@@ -296,6 +348,7 @@ export function FascicoloDettaglioPage() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
+                                disabled={readOnly}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -373,6 +426,11 @@ export function FascicoloDettaglioPage() {
               <CardDescription>Commenti operativi (mock)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              {readOnly && (
+                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  Solo lettura: prendi in carico il fascicolo per aggiungere note.
+                </div>
+              )}
               <div className="space-y-2">
                 {fascicolo.note.length === 0 ? (
                   <div className="text-sm text-muted-foreground">Nessuna nota.</div>
@@ -395,14 +453,19 @@ export function FascicoloDettaglioPage() {
               <div className="rounded-lg border p-3">
                 <div className="text-sm font-medium">Aggiungi nota</div>
                 <div className="mt-2 flex flex-col gap-2 md:flex-row">
-                  <Input value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Scrivi qui..." />
+                  <Input
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder={readOnly ? "Solo lettura" : "Scrivi qui..."}
+                    disabled={readOnly}
+                  />
                   <Button
                     onClick={() => {
                       // mock only
                       setNewNote("");
                       alert("Demo: qui salveresti la nota su backend 🙂");
                     }}
-                    disabled={!newNote.trim()}
+                    disabled={readOnly || !newNote.trim()}
                   >
                     Pubblica
                   </Button>
