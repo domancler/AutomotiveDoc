@@ -62,8 +62,13 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
 
   const overall = (anyF.workflow?.overall ?? anyF.workflowState ?? mapLegacyStatoToState(f.stato)) as StateCode;
   const bo = (anyF.workflow?.bo ?? overall) as StateCode;
-  const bof = (anyF.workflow?.bof ?? overall) as StateCode;
-  const bou = (anyF.workflow?.bou ?? overall) as StateCode;
+  // fallback: se il fascicolo è in validazione ma i rami non esistono (vecchi dati), assumili “in attesa di presa in carico”
+  const bof = (
+    (anyF.workflow?.bof ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOF : overall)) as StateCode
+  );
+  const bou = (
+    (anyF.workflow?.bou ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOU : overall)) as StateCode
+  );
 
   // Stato per le regole (can): dipende dal ruolo che sta agendo
   const state: StateCode | undefined = (() => {
@@ -88,13 +93,21 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
       if (!raw || raw === "—" || raw === "-" || raw.toLowerCase() === "nessuno") return undefined;
       return raw.toLowerCase();
     })(),
-    hasFinanziamento: anyF.hasFinanziamento ?? hasProvaPagamentoDoc(f),
-    hasPermuta: anyF.hasPermuta ?? false,
+    // Se esiste il ramo nel workflow, l'area è attiva anche se i flag nel mock sono incompleti.
+    // Se il ramo esiste (o lo stiamo inferendo), l’area è attiva.
+    hasFinanziamento:
+      Boolean(anyF.hasFinanziamento) || hasProvaPagamentoDoc(f) || Boolean(anyF.workflow?.bof) || overall === States.DA_VALIDARE_BO,
+    hasPermuta: Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou) || overall === States.DA_VALIDARE_BO,
     inChargeBO: anyF.inChargeBO ?? null,
     inChargeBOF: anyF.inChargeBOF ?? null,
     inChargeBOU: anyF.inChargeBOU ?? null,
     inChargeDelivery: anyF.inChargeDelivery ?? null,
     inChargeVRC: anyF.inChargeVRC ?? null,
+    commDocsComplete: (() => {
+      const docs = (f as any).documenti as Array<{ presente?: boolean }> | undefined;
+      if (!docs || docs.length === 0) return true;
+      return docs.every((d) => !!d.presente);
+    })(),
   };
 }
 
@@ -312,7 +325,12 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
   const allowed = (action: Action) =>
     user ? can(user as any, action, ctx) : false;
 
-  const disabledReason = (action: Action) => reasonByState(action, state);
+  const disabledReason = (action: Action) => {
+    if (action === "FASCICOLO.SEND_AS_COMM" && role === "COMMERCIALE" && ctx.commDocsComplete === false) {
+      return "Non puoi procedere: hai tipologie senza documento. Carica i documenti (tutti) oppure rimuovi le tipologie.";
+    }
+    return reasonByState(action, state);
+  };
 
   const doAction = (action: Action, label: string) => {
     dispatchFascicoloAction({

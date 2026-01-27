@@ -19,6 +19,7 @@ import { addDocumentoRow, markDocumentoPresente, removeDocumentoRow } from "@/mo
 import { ConfirmDialog } from "@/ui/components/confirm-dialog";
 import { can, type FascicoloContext } from "@/auth/can";
 import type { Action } from "@/auth/actions";
+import type { Role } from "@/auth/roles";
 
 function formatDateIT(iso: string) {
   try {
@@ -30,6 +31,36 @@ function formatDateIT(iso: string) {
   } catch {
     return iso;
   }
+}
+
+function firstReviewBranchState(f: any): string | undefined {
+  const bo = f.workflow?.bo;
+  const bof = f.workflow?.bof;
+  const bou = f.workflow?.bou;
+  const candidates = [bo, bof, bou].filter(Boolean) as string[];
+  return candidates.find(
+    (s) =>
+      s === States.DA_RIVEDERE_BO ||
+      s === States.DA_RIVEDERE_BOF ||
+      s === States.DA_RIVEDERE_BOU,
+  );
+}
+
+function stateForRole(f: any, role?: Role): string | undefined {
+  const overall = f.workflow?.overall;
+  const bo = f.workflow?.bo ?? overall;
+  // fallback compatibilità: se overall è in validazione ma i rami non esistono (vecchi dati),
+  // assumili “in attesa di presa in carico” nel ramo specifico.
+  const bof = f.workflow?.bof ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOF : overall);
+  const bou = f.workflow?.bou ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOU : overall);
+
+  if (role === "BO") return bo;
+  if (role === "BOF") return bof;
+  if (role === "BOU") return bou;
+  if (role === "COMMERCIALE") return firstReviewBranchState(f) ?? overall;
+  if (role === "CONSEGNATORE") return overall;
+  if (role === "VRC") return overall;
+  return overall;
 }
 
 export function FascicoloDettaglioPage() {
@@ -63,20 +94,35 @@ export function FascicoloDettaglioPage() {
   })();
 
   // --- Read-only finché non sei in carico (o non hai permessi operativi nello stato corrente)
-  const ctx: FascicoloContext = useMemo(
-    () => ({
-      state: fascicolo.workflow?.overall,
-      ownerId: fascicolo.ownerId ?? undefined,
-      hasFinanziamento: fascicolo.hasFinanziamento,
-      hasPermuta: fascicolo.hasPermuta,
-      inChargeBO: fascicolo.inChargeBO ?? null,
-      inChargeBOF: fascicolo.inChargeBOF ?? null,
-      inChargeBOU: fascicolo.inChargeBOU ?? null,
-      inChargeDelivery: fascicolo.inChargeDelivery ?? null,
-      inChargeVRC: fascicolo.inChargeVRC ?? null,
-    }),
-    [fascicolo]
-  );
+  const ctx: FascicoloContext = useMemo(() => {
+    const anyF: any = fascicolo;
+
+    // IMPORTANT: nel dettaglio lo stato deve essere quello "del ramo" del ruolo loggato,
+    // altrimenti (es. BO in verifica) rimani in read-only perché overall non cambia.
+    const state = stateForRole(anyF, user?.role as Role | undefined) as any;
+
+    // Area attiva: se nel workflow esiste il ramo, deve essere considerata attiva anche se i flag booleani nel mock sono incompleti.
+    // Nel flusso attuale i tre rami BO sono sempre attivi. Considera attiva l'area se:
+    // - il flag è true, oppure
+    // - esiste il ramo nel workflow, oppure
+    // - overall è già in validazione (compatibilità con vecchi dati)
+    const overall = anyF.workflow?.overall;
+    const hasFinanziamento = Boolean(anyF.hasFinanziamento) || Boolean(anyF.workflow?.bof) || overall === States.DA_VALIDARE_BO;
+    const hasPermuta = Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou) || overall === States.DA_VALIDARE_BO;
+
+    return {
+      state,
+      ownerId: anyF.ownerId ?? undefined,
+      hasFinanziamento,
+      hasPermuta,
+      inChargeBO: anyF.inChargeBO ?? null,
+      inChargeBOF: anyF.inChargeBOF ?? null,
+      inChargeBOU: anyF.inChargeBOU ?? null,
+      inChargeDelivery: anyF.inChargeDelivery ?? null,
+      inChargeVRC: anyF.inChargeVRC ?? null,
+      deliverySentToVRC: anyF.deliverySentToVRC ?? false,
+    };
+  }, [fascicolo, user?.role]);
 
   const allowed = useMemo(() => {
     return (action: Action) => (user ? can(user as any, action, ctx) : false);

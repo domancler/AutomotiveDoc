@@ -57,8 +57,9 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
 
   const overall = (anyF.workflow?.overall ?? anyF.workflowState ?? mapLegacyStatoToState(f.stato)) as StateCode;
   const bo = (anyF.workflow?.bo ?? overall) as StateCode;
-  const bof = (anyF.workflow?.bof ?? overall) as StateCode;
-  const bou = (anyF.workflow?.bou ?? overall) as StateCode;
+  // fallback: se il fascicolo è in validazione ma il ramo non esiste (vecchi dati), assumilo “in attesa di presa in carico”
+  const bof = ((anyF.workflow?.bof ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOF : overall)) as StateCode);
+  const bou = ((anyF.workflow?.bou ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOU : overall)) as StateCode);
 
   const state: StateCode | undefined = (() => {
     if (role === "BO") return bo;
@@ -71,8 +72,10 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
   return {
     state,
     ownerId: anyF.ownerId ?? (f.ownerId ?? undefined),
-    hasFinanziamento: anyF.hasFinanziamento ?? !!anyF.workflow?.bof,
-    hasPermuta: anyF.hasPermuta ?? !!anyF.workflow?.bou,
+    // Se il ramo esiste nel workflow, l'area è da considerare attiva (anche se i flag nel mock sono incompleti).
+    // Se il ramo esiste (o lo stiamo inferendo), l’area è attiva.
+    hasFinanziamento: Boolean(anyF.hasFinanziamento) || Boolean(anyF.workflow?.bof) || overall === States.DA_VALIDARE_BO,
+    hasPermuta: Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou) || overall === States.DA_VALIDARE_BO,
     inChargeBO: anyF.inChargeBO ?? null,
     inChargeBOF: anyF.inChargeBOF ?? null,
     inChargeBOU: anyF.inChargeBOU ?? null,

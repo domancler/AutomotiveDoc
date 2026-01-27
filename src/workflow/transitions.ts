@@ -18,9 +18,11 @@ function normalizeStatoFromOverall(overall?: StateCode): Fascicolo["stato"] {
 
 function requiredBranches(f: Fascicolo) {
   return {
+    // Nel dominio attuale i tre rami Back Office sono sempre presenti e indipendenti.
+    // (Anagrafico / Finanziario / Permuta)
     bo: true,
-    bof: !!f.hasFinanziamento,
-    bou: !!f.hasPermuta,
+    bof: true,
+    bou: true,
   };
 }
 
@@ -49,8 +51,8 @@ export function applyWorkflowAction(
   const wf = f.workflow ?? {
     overall: States.BOZZA,
     bo: States.BOZZA,
-    bof: f.hasFinanziamento ? States.BOZZA : undefined,
-    bou: f.hasPermuta ? States.BOZZA : undefined,
+    bof: States.BOZZA,
+    bou: States.BOZZA,
   };
 
   let next: Fascicolo = {
@@ -92,8 +94,8 @@ export function applyWorkflowAction(
       // Bozza -> Nuovo: presa in carico iniziale del venditore
       setOverall(States.NUOVO);
       setBranch("bo", States.NUOVO);
-      if (req.bof) setBranch("bof", States.NUOVO);
-      if (req.bou) setBranch("bou", States.NUOVO);
+      setBranch("bof", States.NUOVO);
+      setBranch("bou", States.NUOVO);
 
       next = {
         ...next,
@@ -110,8 +112,8 @@ export function applyWorkflowAction(
       // fan-out: entra nella fase BO e imposta i rami richiesti in attesa presa in carico
       setOverall(States.DA_VALIDARE_BO);
       setBranch("bo", States.DA_VALIDARE_BO);
-      if (req.bof) setBranch("bof", States.DA_VALIDARE_BOF);
-      if (req.bou) setBranch("bou", States.DA_VALIDARE_BOU);
+      setBranch("bof", States.DA_VALIDARE_BOF);
+      setBranch("bou", States.DA_VALIDARE_BOU);
 
       next = {
         ...next,
