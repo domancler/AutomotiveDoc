@@ -23,7 +23,13 @@ export type DocumentoTipo =
   | "Consenso marketing"
   | "Documento identità"
   | "Patente"
-  | "Prova pagamento";
+  | "Prova pagamento"
+  // Permuta
+  | "Libretto permuta"
+  | "Foto permuta"
+  // Consegna
+  | "Verbale consegna"
+  | "Assicurazione consegna";
 
 export type Documento = {
   id: string;

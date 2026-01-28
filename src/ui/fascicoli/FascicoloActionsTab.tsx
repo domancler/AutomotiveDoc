@@ -14,7 +14,6 @@ import {
   RotateCcw,
   Hand,
   CheckCircle2,
-  AlertTriangle,
   UserCheck,
   ArrowRightCircle,
 } from "lucide-react";
@@ -41,6 +40,52 @@ function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
 
 function hasProvaPagamentoDoc(f: Fascicolo) {
   return f.documenti?.some((d) => d.tipo === "Prova pagamento") ?? false;
+}
+
+type DocSection = "contratto" | "anagrafica" | "finanziaria" | "permuta" | "consegna";
+
+function docSectionForTipo(tipo: string): DocSection {
+  switch (tipo) {
+    case "Contratto di vendita":
+      return "contratto";
+    case "Privacy":
+    case "Consenso marketing":
+    case "Documento identità":
+    case "Patente":
+      return "anagrafica";
+    case "Prova pagamento":
+      return "finanziaria";
+    case "Libretto permuta":
+    case "Foto permuta":
+      return "permuta";
+    case "Verbale consegna":
+    case "Assicurazione consegna":
+      return "consegna";
+    default:
+      // future-proof: se arriva una tipologia nuova, considerala "contratto" (neutro)
+      return "contratto";
+  }
+}
+
+function sectionsForRole(role?: Role): DocSection[] {
+  if (!role) return [];
+  if (role === "COMMERCIALE") return ["contratto", "anagrafica", "finanziaria", "permuta", "consegna"];
+  if (role === "BO") return ["anagrafica"];
+  if (role === "BOF") return ["finanziaria"];
+  if (role === "BOU") return ["permuta"];
+  if (role === "CONSEGNATORE" || role === "VRC") return ["consegna"];
+  return [];
+}
+
+function missingRequiredDocsBySections(f: Fascicolo, sections: DocSection[]): boolean {
+  const docs = (f as any).documenti as Array<{ tipo?: string; richiesto?: boolean; presente?: boolean }> | undefined;
+  if (!docs || docs.length === 0) return false;
+  return docs.some((d) => {
+    if (!d || !d.richiesto) return false;
+    const sec = docSectionForTipo(String(d.tipo ?? ""));
+    if (!sections.includes(sec)) return false;
+    return !d.presente;
+  });
 }
 
 function firstReviewBranchState(f: Fascicolo): StateCode | undefined {
@@ -104,14 +149,14 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
     inChargeVRC: anyF.inChargeVRC ?? null,
     deliverySentToVRC: Boolean(anyF.deliverySentToVRC),
     commDocsComplete: (() => {
-      const docs = (f as any).documenti as Array<{ presente?: boolean }> | undefined;
+      // Per il venditore: completo solo se TUTTE le tipologie richieste hanno un documento.
+      const docs = (f as any).documenti as Array<{ richiesto?: boolean; presente?: boolean }> | undefined;
       if (!docs || docs.length === 0) return true;
-      return docs.every((d) => !!d.presente);
+      return docs.filter((d) => !!d.richiesto).every((d) => !!d.presente);
     })(),
     deliveryDocsComplete: (() => {
-      const docs = (f as any).documenti as Array<{ presente?: boolean }> | undefined;
-      if (!docs || docs.length === 0) return true;
-      return docs.every((d) => !!d.presente);
+      // Per la consegna: completo solo se TUTTE le tipologie richieste della sezione "consegna" hanno un documento.
+      return !missingRequiredDocsBySections(f, ["consegna"]);
     })(),
   };
 }
@@ -325,13 +370,22 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
   const role = user?.role as Role | undefined;
   const ctx = React.useMemo(() => buildCtx(fascicolo, role), [fascicolo, role]);
   const state = ctx.state;
+  const missingRequiredDocs = React.useMemo(() => {
+    const sections = sectionsForRole(role);
+    // se per qualche motivo il ruolo non ha una sezione (admin/supervisore), non blocchiamo il flusso.
+    if (sections.length === 0) return false;
+    return missingRequiredDocsBySections(fascicolo, sections);
+  }, [fascicolo, role]);
 
   const allowed = (action: Action) =>
     user ? can(user as any, action, ctx) : false;
 
   const disabledReason = (action: Action) => {
     if (action === "FASCICOLO.SEND_AS_COMM" && role === "COMMERCIALE" && ctx.commDocsComplete === false) {
-      return "Non puoi procedere: hai tipologie senza documento. Carica i documenti (tutti) oppure rimuovi le tipologie.";
+      return "Non puoi procedere: ci sono tipologie richieste senza documento. Carica i documenti mancanti oppure rimuovi le tipologie.";
+    }
+    if (action === "DELIVERY.SEND_TO_VRC" && role === "CONSEGNATORE" && ctx.deliveryDocsComplete === false) {
+      return "Non puoi procedere: ci sono tipologie richieste senza documento. Carica i documenti mancanti oppure rimuovi le tipologie.";
     }
     return reasonByState(action, state);
   };
@@ -364,7 +418,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
       <div className="space-y-4">
       {/* ✅ COMMERCIALE: vede SOLO queste */}
       {role === "COMMERCIALE" && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <ActionCard
             title="Prendi in carico"
             subtitle="Porta il fascicolo da Bozza a Nuovo."
@@ -377,7 +431,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             title="Procedi"
             subtitle="Invia il fascicolo alla fase di validazione."
             icon={<Send className="h-5 w-5" />}
-            enabled={allowed("FASCICOLO.SEND_AS_COMM")}
+            enabled={allowed("FASCICOLO.SEND_AS_COMM") && !missingRequiredDocs}
             onClick={() => doAction("FASCICOLO.SEND_AS_COMM", "Procedi")}
             disabledReason={disabledReason("FASCICOLO.SEND_AS_COMM")}
           />
@@ -395,7 +449,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
       {/* ✅ BO */}
       {role === "BO" && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Inizia le verifiche anagrafiche."
@@ -405,23 +459,32 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               disabledReason={disabledReason("FASCICOLO.TAKE_BO")}
             />
             <ActionCard
-              title="Richiedi integrazioni"
-                subtitle="Invia al Venditore per documenti mancanti/non conformi."
-              icon={<AlertTriangle className="h-5 w-5" />}
-              tone="outline"
-              enabled={allowed("FASCICOLO.REQUEST_REVIEW_BO")}
-              onClick={() => doAction("FASCICOLO.REQUEST_REVIEW_BO", "Richiedi integrazioni (BO Anagrafico)")}
-              disabledReason={disabledReason("FASCICOLO.REQUEST_REVIEW_BO")}
-            />
-            <ActionCard
-              title="Valida"
-              subtitle="Conferma esito positivo e completa la sezione."
+              title="Procedi"
+              subtitle={
+                missingRequiredDocs
+                  ? "Se mancano documenti richiesti, rimanda al Venditore."
+                  : "Conferma esito positivo e completa la sezione."
+              }
               icon={<CheckCircle2 className="h-5 w-5" />}
-              enabled={allowed("FASCICOLO.VALIDATE_BO")}
-              onClick={() => doAction("FASCICOLO.VALIDATE_BO", "Valida (BO Anagrafico)")}
-              disabledReason={disabledReason("FASCICOLO.VALIDATE_BO")}
+              tone={missingRequiredDocs ? "outline" : "default"}
+              enabled={
+                missingRequiredDocs
+                  ? allowed("FASCICOLO.REQUEST_REVIEW_BO")
+                  : allowed("FASCICOLO.VALIDATE_BO")
+              }
+              onClick={() =>
+                doAction(
+                  missingRequiredDocs ? "FASCICOLO.REQUEST_REVIEW_BO" : "FASCICOLO.VALIDATE_BO",
+                  "Procedi (BO Anagrafico)"
+                )
+              }
+              disabledReason={
+                disabledReason(
+                  missingRequiredDocs ? "FASCICOLO.REQUEST_REVIEW_BO" : "FASCICOLO.VALIDATE_BO"
+                )
+              }
             />
-            <div className="md:col-span-2 lg:col-span-3">
+            <div className="md:col-span-2 xl:col-span-1">
               <ActionCard
                 title="Riapri fascicolo approvato"
                 subtitle="Riapertura vera (solo su Approvato)."
@@ -437,7 +500,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
       {/* ✅ BOF */}
       {role === "BOF" && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Inizia verifiche finanziarie."
@@ -447,23 +510,32 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               disabledReason={disabledReason("FASCICOLO.TAKE_BOF")}
             />
             <ActionCard
-              title="Richiedi integrazioni"
-              subtitle="Invia al Venditore per integrazioni finanziarie."
-              icon={<AlertTriangle className="h-5 w-5" />}
-              tone="outline"
-              enabled={allowed("FASCICOLO.REQUEST_REVIEW_BOF")}
-              onClick={() => doAction("FASCICOLO.REQUEST_REVIEW_BOF", "Richiedi integrazioni (BO Finanziario)")}
-              disabledReason={disabledReason("FASCICOLO.REQUEST_REVIEW_BOF")}
-            />
-            <ActionCard
-              title="Valida"
-              subtitle="Completa la sezione finanziaria."
+              title="Procedi"
+              subtitle={
+                missingRequiredDocs
+                  ? "Se mancano documenti richiesti, rimanda al Venditore."
+                  : "Completa la sezione finanziaria."
+              }
               icon={<CheckCircle2 className="h-5 w-5" />}
-              enabled={allowed("FASCICOLO.VALIDATE_BOF")}
-              onClick={() => doAction("FASCICOLO.VALIDATE_BOF", "Valida (BO Finanziario)")}
-              disabledReason={disabledReason("FASCICOLO.VALIDATE_BOF")}
+              tone={missingRequiredDocs ? "outline" : "default"}
+              enabled={
+                missingRequiredDocs
+                  ? allowed("FASCICOLO.REQUEST_REVIEW_BOF")
+                  : allowed("FASCICOLO.VALIDATE_BOF")
+              }
+              onClick={() =>
+                doAction(
+                  missingRequiredDocs ? "FASCICOLO.REQUEST_REVIEW_BOF" : "FASCICOLO.VALIDATE_BOF",
+                  "Procedi (BO Finanziario)"
+                )
+              }
+              disabledReason={
+                disabledReason(
+                  missingRequiredDocs ? "FASCICOLO.REQUEST_REVIEW_BOF" : "FASCICOLO.VALIDATE_BOF"
+                )
+              }
             />
-            <div className="md:col-span-2 lg:col-span-3">
+            <div className="md:col-span-2 xl:col-span-1">
               <ActionCard
                 title="Riapri fascicolo approvato"
                 subtitle="Riapertura vera (solo su Approvato)."
@@ -479,7 +551,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
       {/* ✅ BOU */}
       {role === "BOU" && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <ActionCard
               title="Prendi in carico"
               subtitle="Inizia verifiche permuta/usato."
@@ -489,23 +561,32 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               disabledReason={disabledReason("FASCICOLO.TAKE_BOU")}
             />
             <ActionCard
-              title="Richiedi integrazioni"
-              subtitle="Invia al Venditore per integrazioni permuta."
-              icon={<AlertTriangle className="h-5 w-5" />}
-              tone="outline"
-              enabled={allowed("FASCICOLO.REQUEST_REVIEW_BOU")}
-              onClick={() => doAction("FASCICOLO.REQUEST_REVIEW_BOU", "Richiedi integrazioni (BO Permuta)")}
-              disabledReason={disabledReason("FASCICOLO.REQUEST_REVIEW_BOU")}
-            />
-            <ActionCard
-              title="Valida"
-              subtitle="Completa la sezione permuta/usato."
+              title="Procedi"
+              subtitle={
+                missingRequiredDocs
+                  ? "Se mancano documenti richiesti, rimanda al Venditore."
+                  : "Completa la sezione permuta/usato."
+              }
               icon={<CheckCircle2 className="h-5 w-5" />}
-              enabled={allowed("FASCICOLO.VALIDATE_BOU")}
-              onClick={() => doAction("FASCICOLO.VALIDATE_BOU", "Valida (BO Permuta)")}
-              disabledReason={disabledReason("FASCICOLO.VALIDATE_BOU")}
+              tone={missingRequiredDocs ? "outline" : "default"}
+              enabled={
+                missingRequiredDocs
+                  ? allowed("FASCICOLO.REQUEST_REVIEW_BOU")
+                  : allowed("FASCICOLO.VALIDATE_BOU")
+              }
+              onClick={() =>
+                doAction(
+                  missingRequiredDocs ? "FASCICOLO.REQUEST_REVIEW_BOU" : "FASCICOLO.VALIDATE_BOU",
+                  "Procedi (BO Permuta)"
+                )
+              }
+              disabledReason={
+                disabledReason(
+                  missingRequiredDocs ? "FASCICOLO.REQUEST_REVIEW_BOU" : "FASCICOLO.VALIDATE_BOU"
+                )
+              }
             />
-            <div className="md:col-span-2 lg:col-span-3">
+            <div className="md:col-span-2 xl:col-span-1">
               <ActionCard
                 title="Riapri fascicolo approvato"
                 subtitle="Riapertura vera (solo su Approvato)."
@@ -521,7 +602,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
       {/* ✅ CONSEGNATORE */}
       {role === "CONSEGNATORE" && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
             <ActionCard
               title="Prendi in carico"
               subtitle="Presa in carico su Approvato (senza cambio stato)."
@@ -534,7 +615,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               title="Procedi"
               subtitle="Invia al Controllo consegna (o ritorna allo stesso controllo se era in integrazione)."
               icon={<ArrowRightCircle className="h-5 w-5" />}
-              enabled={allowed("DELIVERY.SEND_TO_VRC")}
+              enabled={allowed("DELIVERY.SEND_TO_VRC") && !missingRequiredDocs}
               onClick={() => doAction("DELIVERY.SEND_TO_VRC", "Procedi (Consegna)")}
               disabledReason={disabledReason("DELIVERY.SEND_TO_VRC")}
             />
@@ -543,7 +624,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
       {/* ✅ VRC */}
       {role === "VRC" && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
             <ActionCard
               title="Prendi in carico"
               subtitle="Avvia verifiche consegna."
@@ -559,8 +640,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               enabled={allowed("VRC.REQUEST_FIX") || allowed("VRC.VALIDATE")}
               onClick={() => {
                 // Un solo bottone: decide in base ai documenti
-                const docs = ((fascicolo as any).documenti ?? []) as Array<{ richiesto?: boolean; presente?: boolean }>;
-                const missing = docs.some((d) => !!d.richiesto && !d.presente);
+                const missing = missingRequiredDocsBySections(fascicolo, ["consegna"]);
                 doAction(missing ? "VRC.REQUEST_FIX" : "VRC.VALIDATE", "Procedi (Controllo consegna)");
               }}
               disabledReason={(() => {

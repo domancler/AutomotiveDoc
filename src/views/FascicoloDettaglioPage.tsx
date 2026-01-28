@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useFascicolo } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
@@ -8,7 +8,7 @@ import { Input } from "@/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Progress } from "@/ui/components/progress";
 import { cn, formatEuro } from "@/lib/utils";
-import { FileUp, CheckCircle2, Clock3, Trash2, Car, User, CalendarDays } from "lucide-react";
+import { FileUp, CheckCircle2, Clock3, Trash2, Car, User, CalendarDays, ChevronDown, Check, Search } from "lucide-react";
 import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
 import { useAuth } from "@/auth/AuthProvider";
 import { branchStatusBadges, visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
@@ -20,6 +20,234 @@ import { ConfirmDialog } from "@/ui/components/confirm-dialog";
 import { can, type FascicoloContext } from "@/auth/can";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
+
+type DocSection = "contratto" | "anagrafica" | "finanziaria" | "permuta" | "consegna";
+
+const DOC_SECTION_LABEL: Record<DocSection, string> = {
+  contratto: "Contratto",
+  anagrafica: "Anagrafica",
+  finanziaria: "Finanziaria",
+  permuta: "Permuta",
+  consegna: "Consegna",
+};
+
+function docSectionForTipo(tipo: DocumentoTipo): DocSection {
+  switch (tipo) {
+    // Contratto
+    case "Contratto di vendita":
+    case "Proposta d'acquisto":
+    case "Modulo ordine":
+    case "Condizioni generali di vendita":
+      return "contratto";
+
+    // Anagrafica
+    case "Documento identità":
+    case "Codice fiscale / Tessera sanitaria":
+    case "Patente":
+    case "Dichiarazione residenza":
+    case "Privacy":
+    case "Consenso marketing":
+      return "anagrafica";
+
+    // Finanziaria
+    case "Richiesta finanziamento":
+    case "Delibera finanziaria":
+    case "Busta paga / Redditi":
+    case "IBAN / Mandato SEPA":
+    case "Prova pagamento":
+      return "finanziaria";
+
+    // Permuta
+    case "Libretto permuta":
+    case "Certificato proprietà (CDP)":
+    case "Atto di vendita usato":
+    case "Perizia permuta":
+    case "Foto permuta":
+      return "permuta";
+
+    // Consegna
+    case "Verbale consegna":
+    case "Check-list preconsegna":
+    case "Liberatoria consegna":
+    case "Assicurazione consegna":
+      return "consegna";
+  }
+}
+
+function TipologiePicker(props: {
+  value: DocumentoTipo;
+  onChange: (v: DocumentoTipo) => void;
+  disabled?: boolean;
+  /** Tipologie selezionabili per il ruolo corrente */
+  allowedTipi: DocumentoTipo[];
+  /** Quando true mostra i gruppi per sezione */
+  showGroups?: boolean;
+}) {
+  const { value, onChange, disabled, allowedTipi, showGroups } = props;
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // click fuori per chiudere
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const el = wrapRef.current as HTMLElement | null;
+      if (!el) return;
+      if (el.contains(e.target as Node)) return;
+      setOpen(false);
+    }
+    if (!open) return;
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  const normQ = q.trim().toLowerCase();
+  const match = (s: string) => (normQ ? s.toLowerCase().includes(normQ) : true);
+
+  const grouped = (Object.keys(DOC_TIPI_BY_SECTION) as DocSection[]).map((sec) => {
+    const items = DOC_TIPI_BY_SECTION[sec].filter((t) => allowedTipi.includes(t)).filter((t) => match(t));
+    return { sec, items };
+  });
+
+  const flat = allowedTipi.filter((t) => match(t));
+
+  const hasAny = showGroups ? grouped.some((g) => g.items.length > 0) : flat.length > 0;
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <button
+        type="button"
+        className={cn(
+          "flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-background px-3 text-left text-sm",
+          disabled && "cursor-not-allowed opacity-50",
+        )}
+        onClick={() => !disabled && setOpen((o) => !o)}
+        disabled={disabled}
+      >
+        <span className="truncate">{value}</span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition", open && "rotate-180")} />
+      </button>
+
+      {open && !disabled && (
+        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border bg-background shadow-xl ring-1 ring-border/50">
+          <div className="border-b p-2">
+            <div className="flex items-center gap-2 rounded-md border bg-background px-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Cerca tipologia..."
+                className="h-8 w-full bg-transparent text-sm outline-none"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <div className="max-h-72 overflow-auto p-1">
+            {!hasAny && (
+              <div className="px-2 py-6 text-center text-sm text-muted-foreground">Nessun risultato</div>
+            )}
+
+            {showGroups ? (
+              grouped
+                .filter((g) => g.items.length > 0)
+                .map((g) => (
+                  <div key={g.sec} className="py-1">
+                    <div className="px-2 py-1 text-xs font-medium text-muted-foreground">{DOC_SECTION_LABEL[g.sec]}</div>
+                    {g.items.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          t === value && "bg-muted",
+                        )}
+                        onClick={() => {
+                          onChange(t);
+                          setOpen(false);
+                          setQ("");
+                        }}
+                      >
+                        <span className="pr-2">{t}</span>
+                        {t === value && <Check className="h-4 w-4 text-muted-foreground" />}
+                      </button>
+                    ))}
+                  </div>
+                ))
+            ) : (
+              flat.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    t === value && "bg-muted",
+                  )}
+                  onClick={() => {
+                    onChange(t);
+                    setOpen(false);
+                    setQ("");
+                  }}
+                >
+                  <span className="pr-2">{t}</span>
+                  {t === value && <Check className="h-4 w-4 text-muted-foreground" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const DOC_TIPI_BY_SECTION: Record<DocSection, DocumentoTipo[]> = {
+  contratto: [
+    "Contratto di vendita",
+    "Proposta d'acquisto",
+    "Modulo ordine",
+    "Condizioni generali di vendita",
+  ],
+  anagrafica: [
+    "Documento identità",
+    "Codice fiscale / Tessera sanitaria",
+    "Patente",
+    "Dichiarazione residenza",
+    "Privacy",
+    "Consenso marketing",
+  ],
+  finanziaria: [
+    "Richiesta finanziamento",
+    "Delibera finanziaria",
+    "Busta paga / Redditi",
+    "IBAN / Mandato SEPA",
+    "Prova pagamento",
+  ],
+  permuta: [
+    "Libretto permuta",
+    "Certificato proprietà (CDP)",
+    "Atto di vendita usato",
+    "Perizia permuta",
+    "Foto permuta",
+  ],
+  consegna: [
+    "Verbale consegna",
+    "Check-list preconsegna",
+    "Liberatoria consegna",
+    "Assicurazione consegna",
+  ],
+};
+
+function allowedDocSectionsForRole(role?: Role): DocSection[] {
+  if (!role) return [];
+  if (role === "COMMERCIALE") return ["contratto", "anagrafica", "finanziaria", "permuta", "consegna"];
+  // BO Anagrafico: gestisce sia anagrafica che contratto (controlli formali e firme)
+  if (role === "BO") return ["contratto", "anagrafica"];
+  if (role === "BOF") return ["finanziaria"];
+  if (role === "BOU") return ["permuta"];
+  if (role === "CONSEGNATORE" || role === "VRC") return ["consegna"];
+  return [];
+}
 
 function formatDateIT(iso: string) {
   try {
@@ -143,12 +371,44 @@ export function FascicoloDettaglioPage() {
 
   const readOnly = !canOperate;
 
-  const DOCS_PAGE_SIZE = 8;
+  // --- Documenti: permessi per sezione (le altre sezioni restano visibili ma in sola lettura)
+  const allowedSections = useMemo(() => allowedDocSectionsForRole(user?.role as Role | undefined), [user?.role]);
+  const allowedTipi = useMemo(() => {
+    const all = allowedSections.flatMap((s) => DOC_TIPI_BY_SECTION[s] ?? []);
+    return Array.from(new Set(all));
+  }, [allowedSections]);
+
+  useEffect(() => {
+    // se cambia ruolo (o si logga un altro utente) riallinea la tipologia selezionata
+    if (allowedTipi.length === 0) return;
+    if (!allowedTipi.includes(docTipo)) {
+      setDocTipo(allowedTipi[0]);
+    }
+  }, [allowedTipi, docTipo]);
+
+  // Nota: con le sezioni collassabili ha più senso mostrare tutto insieme (senza paginazione).
+  // Manteniamo comunque il calcolo per non stravolgere lo stato della pagina.
+  const DOCS_PAGE_SIZE = 9999;
   const docsTotalPages = Math.max(1, Math.ceil(fascicolo.documenti.length / DOCS_PAGE_SIZE));
   const docsRows = useMemo(() => {
     const start = docsPage * DOCS_PAGE_SIZE;
     return fascicolo.documenti.slice(start, start + DOCS_PAGE_SIZE);
   }, [fascicolo.documenti, docsPage]);
+
+  const docsBySection = useMemo(() => {
+    const by: Record<DocSection, typeof docsRows> = {
+      contratto: [],
+      anagrafica: [],
+      finanziaria: [],
+      permuta: [],
+      consegna: [],
+    };
+    for (const d of docsRows) {
+      const sec = docSectionForTipo(d.tipo);
+      by[sec].push(d);
+    }
+    return by;
+  }, [docsRows]);
 
   useEffect(() => {
     const last = Math.max(0, docsTotalPages - 1);
@@ -294,19 +554,16 @@ export function FascicoloDettaglioPage() {
                 <div className="grid gap-3 md:grid-cols-4">
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">Tipologia</div>
-                    <select
-                      className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                    <TipologiePicker
                       value={docTipo}
-                      onChange={(e) => setDocTipo(e.target.value as DocumentoTipo)}
-                      disabled={readOnly}
-                    >
-                      <option value="Contratto di vendita">Contratto di vendita</option>
-                      <option value="Privacy">Privacy</option>
-                      <option value="Consenso marketing">Consenso marketing</option>
-                      <option value="Documento identità">Documento identità</option>
-                      <option value="Patente">Patente</option>
-                      <option value="Prova pagamento">Prova pagamento</option>
-                    </select>
+                      onChange={(v) => setDocTipo(v)}
+                      allowedTipi={allowedTipi}
+                      showGroups={user?.role === "COMMERCIALE"}
+                      disabled={readOnly || allowedTipi.length === 0}
+                    />
+                    {allowedTipi.length === 0 && (
+                      <div className="mt-1 text-xs text-muted-foreground">Nessuna tipologia disponibile</div>
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -348,7 +605,7 @@ export function FascicoloDettaglioPage() {
                         });
                         setDocNote("");
                       }}
-                      disabled={readOnly}
+                      disabled={readOnly || allowedTipi.length === 0}
                     >
                       Aggiungi tipologia
                     </Button>
@@ -356,71 +613,85 @@ export function FascicoloDettaglioPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-lg border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/60 text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium">Tipo</th>
-                      <th className="px-4 py-3 text-left font-medium">Richiesto</th>
-                      <th className="px-4 py-3 text-left font-medium">Presente</th>
-                      <th className="px-4 py-3 text-left font-medium">Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {docsRows.map((d) => (
-                      <tr key={d.id} className="border-t">
-                        <td className="px-4 py-3 font-medium">{d.tipo}</td>
-                        <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
-                        <td className="px-4 py-3">
-                          <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
-                            {d.presente ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
-                            {d.presente ? "Presente" : "Mancante"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="text-muted-foreground">{d.note?.trim() ? d.note : "—"}</div>
-                            <div className="flex flex-wrap items-center justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => markDocumentoPresente(fascicolo.id, d.id)}
-                                disabled={readOnly || d.presente}
-                              >
-                                <FileUp className="h-4 w-4" /> Carica
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
-                                disabled={readOnly}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <div className="space-y-3">
+                {(Object.keys(DOC_TIPI_BY_SECTION) as DocSection[]).map((sec) => {
+                  const rows = docsBySection[sec];
+                  if (!rows || rows.length === 0) return null;
 
-              {docsTotalPages > 1 && (
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <div className="text-sm text-muted-foreground">
-                    Pagina <span className="font-medium text-foreground">{docsPage + 1}</span> / {docsTotalPages}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setDocsPage((p) => Math.max(0, p - 1))} disabled={docsPage === 0}>
-                      Precedente
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setDocsPage((p) => Math.min(docsTotalPages - 1, p + 1))} disabled={docsPage >= docsTotalPages - 1}>
-                      Successiva
-                    </Button>
-                  </div>
-                </div>
-              )}
+                  const canEditSection = !readOnly && allowedSections.includes(sec);
+                  const defaultOpen = user?.role === "COMMERCIALE" ? true : allowedSections.includes(sec);
+                  const required = rows.filter((r) => r.richiesto).length;
+                  const present = rows.filter((r) => r.presente).length;
+
+                  return (
+                    <details key={sec} className="overflow-hidden rounded-lg border" defaultOpen={defaultOpen}>
+                      <summary className="flex cursor-pointer items-center justify-between gap-3 bg-muted/30 px-4 py-3">
+                        <div className="font-medium">{DOC_SECTION_LABEL[sec]}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Documenti richiesti: {required} · presenti: {present}
+                        </div>
+                      </summary>
+                      {!canEditSection && (
+                        <div className="border-t bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
+                          {readOnly
+                            ? "Solo lettura: prendi in carico il fascicolo per operare sui documenti."
+                            : "Solo lettura: questa sezione è gestita da un altro reparto."}
+                        </div>
+                      )}
+
+                      <div className="border-t">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/60 text-muted-foreground">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-medium">Tipo</th>
+                              <th className="px-4 py-3 text-left font-medium">Richiesto</th>
+                              <th className="px-4 py-3 text-left font-medium">Presente</th>
+                              <th className="px-4 py-3 text-left font-medium">Note</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((d) => (
+                              <tr key={d.id} className="border-t">
+                                <td className="px-4 py-3 font-medium">{d.tipo}</td>
+                                <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
+                                <td className="px-4 py-3">
+                                  <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
+                                    {d.presente ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
+                                    {d.presente ? "Presente" : "Mancante"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="text-muted-foreground">{d.note?.trim() ? d.note : "—"}</div>
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => markDocumentoPresente(fascicolo.id, d.id)}
+                                        disabled={!canEditSection || d.presente}
+                                      >
+                                        <FileUp className="h-4 w-4" /> Carica
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
+                                        disabled={!canEditSection}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
 
               <ConfirmDialog
                 open={!!removeTarget}
