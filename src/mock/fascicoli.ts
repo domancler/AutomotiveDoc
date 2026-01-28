@@ -56,6 +56,13 @@ export type Fascicolo = {
   inChargeDelivery?: string | null;
   inChargeVRC?: string | null;
 
+  /** Ultimo incaricato per ramo (serve per i ritorni: deve tornare allo stesso BO/operatore) */
+  lastInChargeBO?: string | null;
+  lastInChargeBOF?: string | null;
+  lastInChargeBOU?: string | null;
+  lastInChargeDelivery?: string | null;
+  lastInChargeVRC?: string | null;
+
   /** consegna: true quando l'operatore consegna ha premuto "Procedi" verso VRC */
   deliverySentToVRC?: boolean;
 

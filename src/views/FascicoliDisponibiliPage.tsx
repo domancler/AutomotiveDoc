@@ -85,6 +85,26 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
   };
 }
 
+function getOverallState(f: Fascicolo): StateCode {
+  const anyF: any = f;
+  return (anyF.workflow?.overall ?? anyF.workflowState ?? mapLegacyStatoToState(f.stato)) as StateCode;
+}
+
+function roleMatchesAvailability(role: Role, overall: StateCode): boolean {
+  // Regole di dominio:
+  // - Bozza: solo Venditore
+  // - In validazione: solo BackOffice
+  // - Approvato: solo Operatore consegna
+  // - Consegna (in attesa di presa in carico): solo Controllo consegna
+  if (overall === States.BOZZA) return role === "COMMERCIALE";
+  if (overall === States.DA_VALIDARE_BO) return role === "BO" || role === "BOF" || role === "BOU";
+  if (overall === States.APPROVATO) return role === "CONSEGNATORE";
+  if (overall === States.DA_VALIDARE_CONSEGNA) return role === "VRC";
+
+  // Gli altri stati non hanno "Disponibili" dedicati (o sono gestiti dai can())
+  return true;
+}
+
 function canTake(f: Fascicolo, user: { id: string; username: string; role: Role }) {
   const action = TAKE_BY_ROLE[user.role];
   if (!action) return false;
@@ -101,7 +121,7 @@ export function FascicoliDisponibiliPage() {
   const base = useMemo(() => {
     if (!user) return [];
     // “Disponibili” = fascicoli “senza padrone” nel tuo reparto, che puoi prendere in carico
-    return fascicoli.filter((f) => canTake(f, user));
+    return fascicoli.filter((f) => roleMatchesAvailability(user.role, getOverallState(f)) && canTake(f, user));
   }, [fascicoli, user]);
 
   const rows = useMemo(() => {

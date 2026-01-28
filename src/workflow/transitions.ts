@@ -224,6 +224,7 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeDelivery: actorId,
+        lastInChargeDelivery: actorId,
         deliverySentToVRC: false,
         progress: Math.max(next.progress ?? 0, 90),
         timeline: pushTimeline(next, actorName, "Operatore consegna: presa in carico"),
@@ -232,9 +233,27 @@ export function applyWorkflowAction(
     }
     case "DELIVERY.SEND_TO_VRC": {
       // operatore consegna -> invio a controllo consegna
+      // Caso 1: primo invio => diventa disponibile al VRC (che lo prende in carico)
+      // Caso 2: ritorno da integrazioni (DA_RIVEDERE_VRC) => torna direttamente allo stesso VRC in "In verifica"
+
+      const returningToSameVrc = (next.workflow?.overall as any) === States.DA_RIVEDERE_VRC && !!next.lastInChargeVRC;
+
+      if (returningToSameVrc) {
+        setOverall(States.VERIFICHE_CONSEGNA);
+        next = {
+          ...next,
+          inChargeDelivery: null,
+          deliverySentToVRC: true,
+          inChargeVRC: next.lastInChargeVRC ?? null,
+          timeline: pushTimeline(next, actorName, "Reinviato a Controllo consegna (ritorno diretto)"),
+        };
+        return next;
+      }
+
       setOverall(States.DA_VALIDARE_CONSEGNA);
       next = {
         ...next,
+        inChargeDelivery: null,
         deliverySentToVRC: true,
         inChargeVRC: null,
         timeline: pushTimeline(next, actorName, "Inviato a Controllo consegna"),
@@ -247,6 +266,7 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeVRC: actorId,
+        lastInChargeVRC: actorId,
         timeline: pushTimeline(next, actorName, "Controllo consegna: preso in carico"),
       };
       return next;
@@ -256,6 +276,8 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeVRC: null,
+        // torna allo stesso operatore consegna di prima
+        inChargeDelivery: next.lastInChargeDelivery ?? null,
         deliverySentToVRC: false,
         timeline: pushTimeline(next, actorName, "Controllo consegna: richieste integrazioni"),
       };

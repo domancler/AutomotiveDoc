@@ -26,7 +26,6 @@ export type Action =
 
   // consegna
   | "DELIVERY.TAKE"
-  | "DELIVERY.UPLOAD"
   | "DELIVERY.SEND_TO_VRC"
   | "VRC.TAKE"
   | "VRC.VALIDATE"

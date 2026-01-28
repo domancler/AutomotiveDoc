@@ -59,7 +59,7 @@ function stateForRole(f: any, role?: Role): string | undefined {
   if (role === "BOU") return bou;
   if (role === "COMMERCIALE") return firstReviewBranchState(f) ?? overall;
   if (role === "CONSEGNATORE") return overall;
-  if (role === "VRC") return overall;
+  if (role === "VRC") return f.workflow?.consegna ?? overall;
   return overall;
 }
 
@@ -137,7 +137,6 @@ export function FascicoloDettaglioPage() {
     allowed("FASCICOLO.REQUEST_REVIEW_BOF") ||
     allowed("FASCICOLO.VALIDATE_BOU") ||
     allowed("FASCICOLO.REQUEST_REVIEW_BOU") ||
-    allowed("DELIVERY.UPLOAD") ||
     allowed("DELIVERY.SEND_TO_VRC") ||
     allowed("VRC.VALIDATE") ||
     allowed("VRC.REQUEST_FIX");

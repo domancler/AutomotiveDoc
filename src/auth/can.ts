@@ -30,6 +30,9 @@ export type FascicoloContext = {
 
   /** COMMERCIALE: true se tutte le tipologie inserite hanno un documento presente (oppure non ci sono tipologie) */
   commDocsComplete?: boolean;
+
+  /** CONSEGNATORE: true se tutte le tipologie inserite hanno un documento presente (oppure non ci sono tipologie) */
+  deliveryDocsComplete?: boolean;
 };
 
 const TAKE_BY_ROLE: Record<Role, Action | null> = {
@@ -207,14 +210,10 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
       return state === States.APPROVATO && !inCharge;
     }
 
-    if (action === "DELIVERY.UPLOAD") {
-      return (
-        inCharge === user.id &&
-        (state === States.FASE_FINALE || state === States.DA_RIVEDERE_VRC)
-      );
-    }
-
     if (action === "DELIVERY.SEND_TO_VRC") {
+      // Regola di flusso: se l'operatore consegna ha inserito tipologie,
+      // deve anche avere i documenti presenti. Se non ci sono tipologie, può procedere.
+      if (fascicolo?.deliveryDocsComplete === false) return false;
       return (
         inCharge === user.id &&
         (state === States.FASE_FINALE || state === States.DA_RIVEDERE_VRC)

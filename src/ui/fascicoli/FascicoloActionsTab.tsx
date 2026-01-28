@@ -15,7 +15,6 @@ import {
   Hand,
   CheckCircle2,
   AlertTriangle,
-  FileUp,
   UserCheck,
   ArrowRightCircle,
 } from "lucide-react";
@@ -103,7 +102,13 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
     inChargeBOU: anyF.inChargeBOU ?? null,
     inChargeDelivery: anyF.inChargeDelivery ?? null,
     inChargeVRC: anyF.inChargeVRC ?? null,
+    deliverySentToVRC: Boolean(anyF.deliverySentToVRC),
     commDocsComplete: (() => {
+      const docs = (f as any).documenti as Array<{ presente?: boolean }> | undefined;
+      if (!docs || docs.length === 0) return true;
+      return docs.every((d) => !!d.presente);
+    })(),
+    deliveryDocsComplete: (() => {
       const docs = (f as any).documenti as Array<{ presente?: boolean }> | undefined;
       if (!docs || docs.length === 0) return true;
       return docs.every((d) => !!d.presente);
@@ -197,7 +202,6 @@ function reasonByState(action: Action, state?: string) {
     // Consegnatore
     case "DELIVERY.TAKE":
       return inState([States.APPROVATO]);
-    case "DELIVERY.UPLOAD":
     case "DELIVERY.SEND_TO_VRC":
       return inState([States.FASE_FINALE, States.DA_RIVEDERE_VRC]);
 
@@ -527,19 +531,11 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               disabledReason={disabledReason("DELIVERY.TAKE")}
             />
             <ActionCard
-              title="Carica documenti consegna"
-              subtitle="Upload documenti richiesti per consegna."
-              icon={<FileUp className="h-5 w-5" />}
-              enabled={allowed("DELIVERY.UPLOAD")}
-              onClick={() => doAction("DELIVERY.UPLOAD", "Carica documenti consegna")}
-              disabledReason={disabledReason("DELIVERY.UPLOAD")}
-            />
-            <ActionCard
-              title="Invia a controllo consegna"
-              subtitle="Invia al Controllo consegna."
+              title="Procedi"
+              subtitle="Invia al Controllo consegna (o ritorna allo stesso controllo se era in integrazione)."
               icon={<ArrowRightCircle className="h-5 w-5" />}
               enabled={allowed("DELIVERY.SEND_TO_VRC")}
-              onClick={() => doAction("DELIVERY.SEND_TO_VRC", "Invia a Controllo consegna")}
+              onClick={() => doAction("DELIVERY.SEND_TO_VRC", "Procedi (Consegna)")}
               disabledReason={disabledReason("DELIVERY.SEND_TO_VRC")}
             />
         </div>
@@ -557,21 +553,22 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               disabledReason={disabledReason("VRC.TAKE")}
             />
             <ActionCard
-              title="Richiedi integrazioni"
-              subtitle="Rimanda all'Operatore consegna per documenti mancanti."
-              icon={<AlertTriangle className="h-5 w-5" />}
-              tone="outline"
-              enabled={allowed("VRC.REQUEST_FIX")}
-              onClick={() => doAction("VRC.REQUEST_FIX", "Richiedi integrazioni (Controllo consegna)")}
-              disabledReason={disabledReason("VRC.REQUEST_FIX")}
-            />
-            <ActionCard
-              title="Valida consegna"
-              subtitle="Chiude il processo (→ Completato)."
+              title="Procedi"
+              subtitle="Se mancano documenti richiesti, rimanda all'Operatore consegna. Altrimenti completa la consegna."
               icon={<CheckCircle2 className="h-5 w-5" />}
-              enabled={allowed("VRC.VALIDATE")}
-              onClick={() => doAction("VRC.VALIDATE", "Valida consegna")}
-              disabledReason={disabledReason("VRC.VALIDATE")}
+              enabled={allowed("VRC.REQUEST_FIX") || allowed("VRC.VALIDATE")}
+              onClick={() => {
+                // Un solo bottone: decide in base ai documenti
+                const docs = ((fascicolo as any).documenti ?? []) as Array<{ richiesto?: boolean; presente?: boolean }>;
+                const missing = docs.some((d) => !!d.richiesto && !d.presente);
+                doAction(missing ? "VRC.REQUEST_FIX" : "VRC.VALIDATE", "Procedi (Controllo consegna)");
+              }}
+              disabledReason={(() => {
+                // Se posso validare o richiedere integrazioni, ok. Altrimenti mostra motivo coerente.
+                if (allowed("VRC.REQUEST_FIX") || allowed("VRC.VALIDATE")) return "";
+                // Preferisci il motivo del "VALIDATE" quando sei in verifica ma non hai in carico
+                return disabledReason("VRC.VALIDATE") || disabledReason("VRC.REQUEST_FIX");
+              })()}
             />
           </div>
       )}
