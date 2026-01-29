@@ -1,15 +1,32 @@
 # AutomotiveDoc – Flusso di gestione del fascicolo
 
-Questo documento descrive il **flusso completo di vita di un fascicolo** all’interno dell’applicazione AutomotiveDoc, indicando **ruoli coinvolti, stati, motivazioni delle transizioni** e **posizionamento nei tab dell’interfaccia**.
+Questo documento descrive il **ciclo di vita completo di un fascicolo** all’interno dell’applicazione AutomotiveDoc, specificando:
+
+- **stati**
+- **ruoli coinvolti**
+- **azioni consentite**
+- **regole di avanzamento**
+- **posizionamento nei tab dell’interfaccia**
+
+Il flusso è basato su **presa in carico esplicita**, **rami indipendenti** e **ritorni controllati verso lo stesso utente**.
 
 ---
 
 ## Concetti chiave
 
-- **Disponibili**: fascicoli non ancora presi in carico (sola lettura)
-- **In corso**: fascicoli attualmente in carico all’utente loggato (operativi)
-- **Procedi**: unica azione di avanzamento; il comportamento dipende dallo stato dei documenti
-- **Ritorni controllati**: quando vengono richieste integrazioni, il fascicolo torna **sempre allo stesso utente** che lo aveva prima
+- **Disponibili**
+  - Fascicoli non presi in carico
+  - Sola lettura
+- **In corso**
+  - Fascicoli presi in carico dall’utente loggato
+  - Operativi
+- **Prendi in carico**
+  - Azione che assegna il fascicolo all’utente
+- **Procedi**
+  - Unica azione di avanzamento del flusso
+  - Il comportamento dipende dallo stato e dalla completezza dei documenti
+- **Ritorni controllati**
+  - Quando sono richieste integrazioni, il fascicolo torna **sempre allo stesso utente** che lo aveva in carico in quella fase
 
 ---
 
@@ -22,21 +39,24 @@ Questo documento descrive il **flusso completo di vita di un fascicolo** all’i
 - **Permessi**: sola lettura
 
 **Azione**
-- *Prendi in carico* → il fascicolo diventa del venditore
+- *Prendi in carico* → il fascicolo passa al venditore
 
 ---
 
 ### Stato: **Nuovo**
 - **Ruolo**: Venditore
 - **Tab**: In corso
-- **Permessi**: aggiunta tipologie, caricamento documenti, note
+- **Permessi**:
+  - aggiunta tipologie (di qualunque sezione)
+  - caricamento documenti
+  - inserimento note
 
 **Regola Procedi**
-- Se **non esistono tipologie** → Procedi consentito
-- Se esistono tipologie → Procedi consentito **solo se tutte hanno il documento**
+- Se **esiste almeno una tipologia senza documento** → Procedi **non consentito**
+- Se **tutte le tipologie hanno il documento** → Procedi consentito
 
 **Procedi**
-→ Il fascicolo entra nella fase di validazione Back Office
+→ il fascicolo entra nello stato **In validazione**
 
 ---
 
@@ -47,6 +67,8 @@ La validazione è composta da **tre rami paralleli e indipendenti**:
 - Back Office Finanziario
 - Back Office Permuta
 
+Ogni ramo ha **stato e presa in carico propri**.
+
 ---
 
 ### Stato: **In validazione – In attesa di presa in carico**
@@ -55,33 +77,91 @@ La validazione è composta da **tre rami paralleli e indipendenti**:
 - **Permessi**: sola lettura
 
 **Azione**
-- *Prendi in carico* (per il singolo ramo)
+- *Prendi in carico* (per il singolo ramo BO)
 
 ---
 
 ### Stato: **In validazione – In verifica**
 - **Ruolo**: BO che ha preso in carico
 - **Tab**: In corso
-- **Permessi**: aggiunta/rimozione tipologie e documenti
+- **Permessi**:
+  - gestione tipologie e documenti **solo della propria sezione**
 
 **Procedi**
-- Se esistono tipologie richieste senza documento  
-  → richiesta integrazioni  
-  → il fascicolo torna **allo stesso venditore**
-- Se tutto completo  
-  → il ramo viene **validato**
+- Se **tutte le tipologie hanno il documento**
+  → il ramo passa a **Validato**
+- Se **mancano documenti**
+  → il ramo passa a **Da controllare**
+  → il fascicolo torna **allo stesso venditore** che lo aveva in carico
 
 ---
 
-### Stato: **In validazione – Validato**
+### Stato: **Da controllare**
+- Stato del singolo ramo BO
+- Indica che sono richieste integrazioni
+
+**Comportamento**
+- Il venditore carica i documenti mancanti
+- **Procedi**
+  → il fascicolo torna **allo stesso BO**
+  → stato: **In validazione – In verifica**
+
+Il BO ripete la verifica con la stessa logica.
+
+---
+
+### Stato: **Validato**
 - Stato interno del singolo ramo BO
-
-Quando **tutti e tre i rami BO sono validati**:
-→ passaggio automatico allo stato **Approvato**
+- Il ramo è concluso positivamente
 
 ---
 
-## 3. Operatore Consegna – Fase finale
+### Passaggio automatico
+Quando **tutti e tre i rami BO sono in stato Validato**:
+→ il fascicolo passa allo stato **Approvato**
+
+---
+
+## 3. Stato Approvato e riapertura
+
+### Stato: **Approvato**
+- Tutti i BO hanno validato il fascicolo
+- Il venditore **può ancora agire solo in questa fase**
+
+---
+
+### Riapertura proposta dal venditore
+- Il venditore può **richiedere la riapertura** del fascicolo
+- Il fascicolo ricompare negli **In corso** dei BO originali
+- È visibile che è stata proposta una riapertura
+
+**Accettazione**
+- Se **uno qualsiasi dei BO** fa *Riapri*:
+  - il fascicolo viene riaperto per **tutti e tre**
+  - stati risultanti:
+    - BO che accetta → **In validazione – In verifica**
+    - altri BO → **In validazione – Validato**
+
+---
+
+### Riapertura diretta da parte dei BO
+- I BO che avevano validato il fascicolo possono:
+  - riaprire **anche senza proposta del venditore**
+
+**Effetto**
+- stesso comportamento della riapertura proposta
+- stessi BO di prima
+- stati differenziati come sopra
+
+---
+
+### Fine ruolo venditore
+- Superata la fase **Approvato** (senza riapertura):
+  - il ruolo del venditore è concluso
+
+---
+
+## 4. Operatore Consegna
 
 ### Stato: **Approvato**
 - **Ruolo**: Operatore consegna
@@ -93,23 +173,24 @@ Quando **tutti e tre i rami BO sono validati**:
 
 ---
 
-### Stato: **Fase finale**
+### Stato: **Consegna – In corso**
 - **Ruolo**: Operatore consegna
 - **Tab**: In corso
-- **Permessi**: aggiunta tipologie e documenti di consegna
+- **Permessi**:
+  - gestione tipologie e documenti di consegna
 
 **Regola Procedi**
-- Se esistono tipologie senza documento → Procedi **non consentito**
+- Se **esiste almeno una tipologia senza documento** → Procedi non consentito
 - Se tutto completo → Procedi consentito
 
 **Procedi**
-→ il fascicolo diventa disponibile per il Controllo consegna
+→ stato **Consegna – In attesa di presa in carico**
 
 ---
 
-## 4. Controllo Consegna (VRC)
+## 5. Controllo Consegna
 
-### Stato: **Fase finale – In attesa di presa in carico**
+### Stato: **Consegna – In attesa di presa in carico**
 - **Ruolo**: Controllo consegna
 - **Tab**: Disponibili
 
@@ -121,24 +202,26 @@ Quando **tutti e tre i rami BO sono validati**:
 ### Stato: **In verifica**
 - **Ruolo**: Controllo consegna
 - **Tab**: In corso
-- **Permessi**: come un BO (tipologie e documenti)
+- **Permessi**:
+  - gestione documenti della consegna
 
 **Procedi**
-- Se mancano documenti richiesti  
-  → il fascicolo torna **allo stesso operatore consegna**
-- Se tutto corretto  
+- Se **mancano documenti**
+  → ritorno **allo stesso operatore consegna**
+- Se tutto corretto
   → **Completato**
 
 ---
 
-### Ritorno dall’Operatore Consegna
+### Ritorno dall’operatore consegna
 - L’operatore carica i documenti mancanti
 - **Procedi**
-  → il fascicolo torna **direttamente allo stesso Controllo consegna** in “In verifica”
+  → il fascicolo torna **direttamente allo stesso controllo consegna**
+  → stato **In verifica**
 
 ---
 
-## 5. Stato finale
+## 6. Stato finale
 
 ### Stato: **Completato**
 - Ciclo di vita concluso
@@ -153,9 +236,7 @@ Quando **tutti e tre i rami BO sono validati**:
   - Disponibili: non preso in carico, sola lettura
   - In corso: preso in carico, operazioni abilitate
 - **Procedi è l’unica azione di avanzamento**
-- **I rami BO e Consegna sono indipendenti**
+- **Ogni ramo BO è indipendente**
 - **I ritorni avvengono sempre verso lo stesso utente**
 - **Le tipologie senza documenti bloccano l’avanzamento**
-
----
-
+- **La riapertura mantiene i BO originali**
