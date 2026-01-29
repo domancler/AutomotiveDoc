@@ -460,16 +460,22 @@ export function FascicoloDettaglioPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {vs ? (
-            <Badge className="border-0" variant={vs.variant as any}>
+            <Badge className="border-0 text-sm px-3 py-1" variant={vs.variant as any}>
               {vs.label}
             </Badge>
           ) : (
-            <Badge className="border-0" variant={statoVariant(fascicolo.stato) as any}>
+            <Badge className="border-0 text-sm px-3 py-1" variant={statoVariant(fascicolo.stato) as any}>
               {fascicolo.stato}
             </Badge>
           )}
-          <Badge variant="outline">{formatEuro(fascicolo.valore)}</Badge>
-          <Badge variant="outline">Assegnato: {fascicolo.assegnatario}</Badge>
+
+          <Badge className="text-sm px-3 py-1" variant="outline">
+            {formatEuro(fascicolo.valore)}
+          </Badge>
+
+          <Badge className="text-sm px-3 py-1" variant="outline">
+            Assegnato: {fascicolo.assegnatario}
+          </Badge>
         </div>
       </div>
 
