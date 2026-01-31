@@ -241,3 +241,8 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   return false;
 }
 
+
+
+export function roleHasTakeAction(role: Role): boolean {
+  return TAKE_BY_ROLE[role] != null;
+}

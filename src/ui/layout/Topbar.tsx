@@ -1,10 +1,17 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { ThemeMenu } from "@/ui/theme/ThemeMenu";
+import { useAuth } from "@/auth/AuthProvider";
+import { can, roleHasTakeAction } from "@/auth/can";
 import { UserMenu } from "@/ui/user/UserMenu";
 
 export function Topbar() {
   const { pathname } = useLocation();
+  const { user } = useAuth();
+
+  const showTakeTabs = !!user && roleHasTakeAction(user.role);
+  const canViewAll = !!user && can(user, "FASCICOLO.VIEW_ALL");
+
 
   const isFascicoloDetail =
     pathname.startsWith("/fascicoli/") &&
@@ -31,47 +38,57 @@ export function Topbar() {
 
           {/* tab subito dopo logo */}
           <nav className="flex items-center gap-4 text-sm font-medium">
-            <NavLink
-              to="/dashboard"
-              className={({ isActive }) =>
-                isActive
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }
-            >
-              Dashboard
-            </NavLink>
-            <NavLink
-              to="/fascicoli/disponibili"
-              className={({ isActive }) =>
-                isActive
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }
-            >
-              Disponibili
-            </NavLink>
-            <NavLink
-              to="/fascicoli/in-corso"
-              className={({ isActive }) =>
-                isActive
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }
-            >
-              In corso
-            </NavLink>
-            <NavLink
-              to="/fascicoli/tutti"
-              className={({ isActive }) =>
-                isActive
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }
-            >
-              Tutti
-            </NavLink>
-          </nav>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) =>
+              isActive
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }
+          >
+            Dashboard
+          </NavLink>
+
+          {canViewAll && (
+            <>
+              {showTakeTabs && (
+                <>
+                  <NavLink
+                    to="/fascicoli/disponibili"
+                    className={({ isActive }) =>
+                      isActive
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }
+                  >
+                    Disponibili
+                  </NavLink>
+                  <NavLink
+                    to="/fascicoli/in-corso"
+                    className={({ isActive }) =>
+                      isActive
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }
+                  >
+                    In corso
+                  </NavLink>
+                </>
+              )}
+
+              <NavLink
+                to="/fascicoli/tutti"
+                className={({ isActive }) =>
+                  isActive
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }
+              >
+                Tutti
+              </NavLink>
+            </>
+          )}
+        </nav>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
