@@ -15,9 +15,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "types": [
-      "vite/client"
-    ],
+    "types": [],
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -26,6 +24,7 @@
     }
   },
   "include": [
-    "src"
+    "src",
+    "types/**/*.d.ts"
   ]
 }

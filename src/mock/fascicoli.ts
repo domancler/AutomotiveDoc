@@ -72,6 +72,11 @@ export type Fascicolo = {
   /** consegna: true quando l'operatore consegna ha premuto "Procedi" verso VRC */
   deliverySentToVRC?: boolean;
 
+  /** APPROVATO: proposta riapertura fatta dal venditore */
+  reopenProposed?: boolean;
+  /** true dopo una riapertura (nuovo ciclo BO) */
+  reopenCycle?: boolean;
+
   /** Flag di dominio: abilita ramo finanziario */
   hasFinanziamento?: boolean;
   /** Flag di dominio: abilita ramo permuta */
@@ -83,7 +88,7 @@ export type Fascicolo = {
   progress: number; // 0..100
   documenti: Documento[];
   timeline: { at: string; actor: string; event: string }[];
-  note: { id: string; at: string; author: string; text: string }[];
+  note: { id: string; at: string; author: string; text: string; kind?: "reopen" | "generic" }[];
 };
 
 function isoDaysAgo(days: number) {

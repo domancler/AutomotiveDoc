@@ -11,11 +11,10 @@
     "isolatedModules": true,
     "noEmit": true,
     "strict": true,
-    "types": [
-      "node"
-    ]
+    "types": []
   },
   "include": [
-    "vite.config.ts"
+    "vite.config.ts",
+    "types/**/*.d.ts"
   ]
 }

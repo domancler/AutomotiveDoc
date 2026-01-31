@@ -12,6 +12,8 @@ export type AppUser = {
 export type FascicoloContext = {
   // stato principale (se nel tuo mock usi label, puoi mapparle a Sxx)
   state?: StateCode;
+  /** stato principale del fascicolo (overall), utile quando state cambia per ruolo (es. BO branch) */
+  overallState?: StateCode;
 
   // proprietà utili alle regole
   ownerId?: string;              // commerciale proprietario
@@ -169,7 +171,7 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
     if (action === "FASCICOLO.VALIDATE_BO") return state === States.VERIFICHE_BO && inCharge === user.id;
     if (action === "FASCICOLO.REQUEST_REVIEW_BO") return state === States.VERIFICHE_BO && inCharge === user.id;
 
-    if (action === "FASCICOLO.REOPEN") return state === States.APPROVATO;
+    if (action === "FASCICOLO.REOPEN") return fascicolo?.overallState === States.APPROVATO;
     return false;
   }
 
@@ -183,7 +185,7 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
     if (action === "FASCICOLO.VALIDATE_BOF") return state === States.VERIFICHE_BOF && inCharge === user.id;
     if (action === "FASCICOLO.REQUEST_REVIEW_BOF") return state === States.VERIFICHE_BOF && inCharge === user.id;
 
-    if (action === "FASCICOLO.REOPEN") return state === States.APPROVATO;
+    if (action === "FASCICOLO.REOPEN") return fascicolo?.overallState === States.APPROVATO;
     return false;
   }
 
@@ -197,7 +199,7 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
     if (action === "FASCICOLO.VALIDATE_BOU") return state === States.VERIFICHE_BOU && inCharge === user.id;
     if (action === "FASCICOLO.REQUEST_REVIEW_BOU") return state === States.VERIFICHE_BOU && inCharge === user.id;
 
-    if (action === "FASCICOLO.REOPEN") return state === States.APPROVATO;
+    if (action === "FASCICOLO.REOPEN") return fascicolo?.overallState === States.APPROVATO;
     return false;
   }
 

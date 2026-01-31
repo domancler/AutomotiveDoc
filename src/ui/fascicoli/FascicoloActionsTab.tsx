@@ -130,6 +130,7 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
 
   return {
     state,
+    overallState: overall,
     ownerId: (() => {
       if (anyF.ownerId) return anyF.ownerId;
       const raw = typeof f.assegnatario === "string" ? f.assegnatario.trim() : "";
@@ -387,7 +388,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
     if (action === "DELIVERY.SEND_TO_VRC" && role === "CONSEGNATORE" && ctx.deliveryDocsComplete === false) {
       return "Non puoi procedere: ci sono tipologie richieste senza documento. Carica i documenti mancanti oppure rimuovi le tipologie.";
     }
-    return reasonByState(action, state);
+    return reasonByState(action, action === "FASCICOLO.REOPEN" ? ctx.overallState : state);
   };
 
   const doAction = (action: Action, label: string) => {

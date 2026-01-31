@@ -123,6 +123,81 @@ export function applyWorkflowAction(
       return next;
     }
 
+    case "FASCICOLO.REQUEST_REOPEN": {
+      // Proposta di riapertura (solo in APPROVATO).
+      // Non cambia lo stato: segnala soltanto la richiesta.
+      // La riapertura effettiva avverrà quando uno dei BO premerà "Riapri".
+      if ((next.workflow?.overall as any) !== States.APPROVATO) return next;
+
+      next = {
+        ...next,
+        reopenProposed: true,
+        timeline: pushTimeline(next, actorName, "Proposta riapertura (venditore)"),
+        note: [
+          ...(Array.isArray(next.note) ? next.note : []),
+          {
+            id: `NOTE-${Math.random().toString(16).slice(2, 8)}`,
+            at: nowIso(),
+            author: actorName,
+            text: "Richiesta riapertura del fascicolo.",
+            kind: "reopen",
+          },
+        ],
+      };
+      return next;
+    }
+
+    case "FASCICOLO.REOPEN": {
+      // Riapertura effettiva (BO/BOF/BOU). Se un BO riapre, il fascicolo viene riaperto per tutti i rami.
+      // Regola README:
+      // - BO che accetta -> In validazione / In verifica
+      // - Altri BO -> restano Validati
+      if ((next.workflow?.overall as any) !== States.APPROVATO) return next;
+
+      const role = actor.role;
+      const acceptingBranch: "bo" | "bof" | "bou" | null =
+        role === "BO" ? "bo" : role === "BOF" ? "bof" : role === "BOU" ? "bou" : null;
+      if (!acceptingBranch) return next;
+
+      // Torna nella fase di validazione
+      setOverall(States.DA_VALIDARE_BO);
+
+      // Imposta gli stati dei rami
+      if (req.bo) setBranch("bo", acceptingBranch === "bo" ? States.VERIFICHE_BO : States.VALIDATO_BO);
+      if (req.bof) setBranch("bof", acceptingBranch === "bof" ? States.VERIFICHE_BOF : States.VALIDATO_BOF);
+      if (req.bou) setBranch("bou", acceptingBranch === "bou" ? States.VERIFICHE_BOU : States.VALIDATO_BOU);
+
+      // Presa in carico del ramo che accetta
+      next = {
+        ...next,
+        reopenProposed: false,
+        reopenCycle: true,
+        // inCharge: solo il ramo che accetta è operativamente "in mano".
+        inChargeBO: acceptingBranch === "bo" ? actorId : null,
+        inChargeBOF: acceptingBranch === "bof" ? actorId : null,
+        inChargeBOU: acceptingBranch === "bou" ? actorId : null,
+        // memoria ultimo incaricato (utile per eventuali ritorni futuri)
+        lastInChargeBO: acceptingBranch === "bo" ? actorId : next.lastInChargeBO ?? null,
+        lastInChargeBOF: acceptingBranch === "bof" ? actorId : next.lastInChargeBOF ?? null,
+        lastInChargeBOU: acceptingBranch === "bou" ? actorId : next.lastInChargeBOU ?? null,
+        // progress: torna indietro ma rimane "avanzato"
+        progress: Math.min(Math.max(next.progress ?? 0, 55), 75),
+        timeline: pushTimeline(next, actorName, "Riapertura accettata (ritorno in validazione)"),
+        note: [
+          ...(Array.isArray(next.note) ? next.note : []),
+          {
+            id: `NOTE-${Math.random().toString(16).slice(2, 8)}`,
+            at: nowIso(),
+            author: actorName,
+            text: "Riapertura accettata: riavviata la validazione.",
+            kind: "reopen",
+          },
+        ],
+      };
+
+      return next;
+    }
+
     // --- BO Anagrafico ---
     case "FASCICOLO.TAKE_BO": {
       setBranch("bo", States.VERIFICHE_BO);
@@ -214,6 +289,107 @@ export function applyWorkflowAction(
         timeline: pushTimeline(next, actorName, "BO Permuta: validato"),
       };
       maybeFanInApprove();
+      return next;
+    }
+
+    case "FASCICOLO.REOPEN": {
+      // Riapertura: può essere fatta da BO/BOF/BOU anche senza proposta.
+      // Comportamento (README):
+      // - un qualsiasi BO che accetta riapre il ciclo per tutti e tre
+      // - ramo del BO che accetta -> In verifica
+      // - altri rami -> restano Validato
+      if ((next.workflow?.overall as any) !== States.APPROVATO) return next;
+
+      // torna alla fase di validazione
+      setOverall(States.DA_VALIDARE_BO);
+
+      const role = actor.role;
+      const acceptBranch: "bo" | "bof" | "bou" | null =
+        role === "BO" ? "bo" : role === "BOF" ? "bof" : role === "BOU" ? "bou" : null;
+
+      // se per qualche motivo manca il ruolo, non cambiamo nulla (sicurezza)
+      if (!acceptBranch) return next;
+
+      // rami non accettanti: restano validati
+      if (req.bo) setBranch("bo", States.VALIDATO_BO);
+      if (req.bof) setBranch("bof", States.VALIDATO_BOF);
+      if (req.bou) setBranch("bou", States.VALIDATO_BOU);
+
+      // ramo accettante: torna in verifica
+      if (acceptBranch === "bo") setBranch("bo", States.VERIFICHE_BO);
+      if (acceptBranch === "bof") setBranch("bof", States.VERIFICHE_BOF);
+      if (acceptBranch === "bou") setBranch("bou", States.VERIFICHE_BOU);
+
+      next = {
+        ...next,
+        reopenProposed: false,
+        reopenCycle: true,
+
+        // assegna la presa in carico al BO che ha accettato
+        inChargeBO: acceptBranch === "bo" ? actorId : null,
+        inChargeBOF: acceptBranch === "bof" ? actorId : null,
+        inChargeBOU: acceptBranch === "bou" ? actorId : null,
+        lastInChargeBO: acceptBranch === "bo" ? actorId : next.lastInChargeBO ?? next.lastInChargeBO,
+        lastInChargeBOF: acceptBranch === "bof" ? actorId : next.lastInChargeBOF ?? next.lastInChargeBOF,
+        lastInChargeBOU: acceptBranch === "bou" ? actorId : next.lastInChargeBOU ?? next.lastInChargeBOU,
+
+        progress: Math.min(next.progress ?? 85, 65),
+        timeline: pushTimeline(next, actorName, "Riapertura accettata"),
+      };
+
+      return next;
+    }
+
+    case "FASCICOLO.REOPEN": {
+      // Riapertura (da uno qualsiasi dei BO) in fase APPROVATO.
+      // Effetto (README):
+      // - il fascicolo rientra in validazione
+      // - il BO che accetta va "In verifica"
+      // - gli altri BO restano "Validato"
+
+      const role = actor.role;
+      const acceptingBranch: "bo" | "bof" | "bou" | null =
+        role === "BO" ? "bo" : role === "BOF" ? "bof" : role === "BOU" ? "bou" : null;
+
+      if (!acceptingBranch) {
+        // azione non applicabile (fallback no-op)
+        return next;
+      }
+
+      // torna in validazione (overall)
+      setOverall(States.DA_VALIDARE_BO);
+
+      // rami: uno torna in verifica, gli altri rimangono validati
+      setBranch("bo", acceptingBranch === "bo" ? States.VERIFICHE_BO : States.VALIDATO_BO);
+      setBranch("bof", acceptingBranch === "bof" ? States.VERIFICHE_BOF : States.VALIDATO_BOF);
+      setBranch("bou", acceptingBranch === "bou" ? States.VERIFICHE_BOU : States.VALIDATO_BOU);
+
+      next = {
+        ...next,
+        reopenProposed: false,
+        reopenCycle: true,
+        // assegna la presa in carico solo al ramo che ha accettato
+        inChargeBO: acceptingBranch === "bo" ? actorId : null,
+        inChargeBOF: acceptingBranch === "bof" ? actorId : null,
+        inChargeBOU: acceptingBranch === "bou" ? actorId : null,
+        lastInChargeBO: acceptingBranch === "bo" ? actorId : next.lastInChargeBO ?? next.inChargeBO ?? null,
+        lastInChargeBOF: acceptingBranch === "bof" ? actorId : next.lastInChargeBOF ?? next.inChargeBOF ?? null,
+        lastInChargeBOU: acceptingBranch === "bou" ? actorId : next.lastInChargeBOU ?? next.inChargeBOU ?? null,
+        // riapertura = torna indietro: abbassa il progress (senza farlo crollare a 0)
+        progress: Math.min(next.progress ?? 85, 70),
+        note: [
+          ...(Array.isArray(next.note) ? next.note : []),
+          {
+            id: `N-${Math.random().toString(16).slice(2, 8)}`,
+            at: nowIso(),
+            author: actorName,
+            text: `Riaperto da ${actorName}`,
+            kind: "reopen",
+          },
+        ],
+        timeline: pushTimeline(next, actorName, "Riapertura fascicolo"),
+      };
+
       return next;
     }
 
