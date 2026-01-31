@@ -92,7 +92,7 @@ function isInCorsoForUser(f: Fascicolo, user: { id: string; username: string; ro
     case "BOU":
       return ctx.inChargeBOU === user.id && ctx.state === States.VERIFICHE_BOU;
     case "CONSEGNATORE":
-      return ctx.inChargeDelivery === user.id && [States.FASE_FINALE, States.DA_RIVEDERE_VRC].includes(ctx.state as any);
+      return ctx.inChargeDelivery === user.id && [States.PRONTO_PER_LA_CONSEGNA, States.DA_RIVEDERE_VRC].includes(ctx.state as any);
     case "VRC":
       return ctx.inChargeVRC === user.id && ctx.state === States.VERIFICHE_CONSEGNA;
     default:

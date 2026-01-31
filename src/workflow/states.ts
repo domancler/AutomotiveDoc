@@ -36,9 +36,9 @@ export const States = {
   // Approvazione
   APPROVATO: "S11" as StateCode,
 
-  // Consegna (VRC)
-  /** Lavorazione consegna (operatore consegna ha il fascicolo "in mano") */
-  FASE_FINALE: "S12" as StateCode,
+  // Post-approvazione / presa in carico Operatore Consegna
+  /** Fascicolo preso in carico dall'Operatore Consegna (fase operativa iniziale) */
+  PRONTO_PER_LA_CONSEGNA: "S12" as StateCode,
   /** Inviato a controllo consegna (in attesa di presa in carico) */
   DA_VALIDARE_CONSEGNA: "S19" as StateCode,
   VERIFICHE_CONSEGNA: "S13" as StateCode,

@@ -39,10 +39,10 @@ function niceStateLabel(state?: StateCode) {
     case States.APPROVATO:
       return "Approvato";
 
-    case States.FASE_FINALE:
-      return "Fase finale";
+    case States.PRONTO_PER_LA_CONSEGNA:
+      return "Pronto per la consegna";
     case States.DA_VALIDARE_CONSEGNA:
-      return "Consegna - in attesa di verifica";
+      return "Consegna - in attesa di presa in carico";
     case States.VERIFICHE_CONSEGNA:
       return "Consegna - in verifica";
     case States.DA_RIVEDERE_VRC:
@@ -52,6 +52,21 @@ function niceStateLabel(state?: StateCode) {
   }
 
   return state ?? "—";
+}
+
+/**
+ * Converte uno StateCode nel suo label "umano" (coerente con il workflow attuale).
+ * Utile per grafici e KPI (es. Dashboard).
+ */
+export function labelFromStateCode(state?: StateCode): string {
+  return niceStateLabel(state);
+}
+
+function toVisibleStatus(state?: StateCode, label?: string): VisibleStatus {
+  const computedLabel = label ?? niceStateLabel(state);
+  const variant = variantFromState(state);
+  // Con exactOptionalPropertyTypes, una prop opzionale NON accetta `undefined` se presente.
+  return state ? { label: computedLabel, variant, code: state } : { label: computedLabel, variant };
 }
 
 function variantFromState(state?: StateCode): VisibleStatus["variant"] {
@@ -72,7 +87,7 @@ function variantFromState(state?: StateCode): VisibleStatus["variant"] {
     state === States.DA_VALIDARE_BO ||
     state === States.DA_VALIDARE_BOF ||
     state === States.DA_VALIDARE_BOU ||
-    state === States.FASE_FINALE ||
+    state === States.PRONTO_PER_LA_CONSEGNA ||
     state === States.DA_VALIDARE_CONSEGNA
   )
     return "warning";
@@ -129,34 +144,36 @@ export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
   const overall = getOverallState(f);
 
   if (overall === States.BOZZA) {
-    return { label: niceStateLabel(overall), variant: variantFromState(overall), code: overall };
+    return toVisibleStatus(overall);
   }
 
   // se siamo già oltre la validazione BO, tutti vedono lo stato macro
-  if (overall && [States.NUOVO, States.APPROVATO, States.FASE_FINALE, States.DA_VALIDARE_CONSEGNA, States.VERIFICHE_CONSEGNA, States.DA_RIVEDERE_VRC, States.CONSEGNATO].includes(overall)) {
-    return { label: niceStateLabel(overall), variant: variantFromState(overall), code: overall };
+  if (overall && [States.NUOVO, States.APPROVATO, States.PRONTO_PER_LA_CONSEGNA, States.DA_VALIDARE_CONSEGNA, States.VERIFICHE_CONSEGNA, States.DA_RIVEDERE_VRC, States.CONSEGNATO].includes(overall)) {
+    return toVisibleStatus(overall);
   }
 
   // fase BO: rami indipendenti
-  const macro = { label: "In validazione (BackOffice)", variant: "warning" as const, code: overall };
+  const macro: VisibleStatus = overall
+    ? { label: "In validazione (BackOffice)", variant: "warning", code: overall }
+    : { label: "In validazione (BackOffice)", variant: "warning" };
 
   if (role === "BO") {
     const s = getBranchState(f, "BO");
-    return { label: niceStateLabel(s), variant: variantFromState(s), code: s };
+    return toVisibleStatus(s);
   }
   if (role === "BOF") {
     const s = getBranchState(f, "BOF");
-    return { label: niceStateLabel(s), variant: variantFromState(s), code: s };
+    return toVisibleStatus(s);
   }
   if (role === "BOU") {
     const s = getBranchState(f, "BOU");
-    return { label: niceStateLabel(s), variant: variantFromState(s), code: s };
+    return toVisibleStatus(s);
   }
 
   if (role === "COMMERCIALE") {
     const review = firstReviewBranchState(f);
     if (review) {
-      return { label: niceStateLabel(review), variant: variantFromState(review), code: review };
+      return toVisibleStatus(review);
     }
     return macro;
   }
@@ -170,8 +187,8 @@ export function branchStatusBadges(f: Fascicolo) {
   const bou = getBranchState(f, "BOU");
 
   return {
-    bo: { label: niceStateLabel(bo), variant: variantFromState(bo), code: bo },
-    bof: { label: niceStateLabel(bof), variant: variantFromState(bof), code: bof },
-    bou: { label: niceStateLabel(bou), variant: variantFromState(bou), code: bou },
+    bo: toVisibleStatus(bo),
+    bof: toVisibleStatus(bof),
+    bou: toVisibleStatus(bou),
   };
 }

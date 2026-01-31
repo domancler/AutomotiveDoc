@@ -218,7 +218,7 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
       if (fascicolo?.deliveryDocsComplete === false) return false;
       return (
         inCharge === user.id &&
-        (state === States.FASE_FINALE || state === States.DA_RIVEDERE_VRC)
+        (state === States.PRONTO_PER_LA_CONSEGNA || state === States.DA_RIVEDERE_VRC)
       );
     }
 

@@ -421,7 +421,7 @@ export function FascicoloDettaglioPage() {
       fascicolo.workflow.overall !== States.BOZZA &&
       fascicolo.workflow.overall !== States.NUOVO &&
       fascicolo.workflow.overall !== States.APPROVATO &&
-      fascicolo.workflow.overall !== States.FASE_FINALE &&
+      fascicolo.workflow.overall !== States.PRONTO_PER_LA_CONSEGNA &&
       fascicolo.workflow.overall !== States.DA_VALIDARE_CONSEGNA &&
       fascicolo.workflow.overall !== States.VERIFICHE_CONSEGNA &&
       fascicolo.workflow.overall !== States.DA_RIVEDERE_VRC &&

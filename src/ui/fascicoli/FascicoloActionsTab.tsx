@@ -186,10 +186,10 @@ function niceStateLabel(state?: string) {
       return "Validato";
     case States.APPROVATO:
       return "Approvato";
-    case States.FASE_FINALE:
-      return "Fase finale";
+    case States.PRONTO_PER_LA_CONSEGNA:
+      return "Pronto per la consegna";
     case States.DA_VALIDARE_CONSEGNA:
-      return "Consegna - in attesa di verifica";
+      return "Consegna - in attesa di presa in carico";
     case States.VERIFICHE_CONSEGNA:
       return "Consegna - in verifica";
     case States.DA_RIVEDERE_VRC:
@@ -249,7 +249,7 @@ function reasonByState(action: Action, state?: string) {
     case "DELIVERY.TAKE":
       return inState([States.APPROVATO]);
     case "DELIVERY.SEND_TO_VRC":
-      return inState([States.FASE_FINALE, States.DA_RIVEDERE_VRC]);
+      return inState([States.PRONTO_PER_LA_CONSEGNA, States.DA_RIVEDERE_VRC]);
 
     // VRC
     case "VRC.TAKE":

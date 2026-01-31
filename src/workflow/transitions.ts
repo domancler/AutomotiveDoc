@@ -395,8 +395,8 @@ export function applyWorkflowAction(
 
     // --- Consegna ---
     case "DELIVERY.TAKE": {
-      // da APPROVATO -> fase finale (in mano all'operatore consegna)
-      setOverall(States.FASE_FINALE);
+      // da APPROVATO -> preso in carico dall'operatore consegna
+      setOverall(States.PRONTO_PER_LA_CONSEGNA);
       next = {
         ...next,
         inChargeDelivery: actorId,

@@ -112,7 +112,7 @@ const T = {
  * - Bozza -> Nuovo (presa in carico venditore)
  * - In validazione: attesa presa / in verifica / da controllare / validato
  * - Approvato
- * - Consegna: fase finale / inviato a VRC / in verifica / da controllare / completato
+ * - Consegna: pronto per la consegna (operatore) / inviato a VRC / in verifica / da controllare / completato
  */
 export const fascicoli: Fascicolo[] = [
   // --- BOZZE (visibili ai venditori su "Disponibili") ---
@@ -315,7 +315,7 @@ export const fascicoli: Fascicolo[] = [
     veicolo: { marca: "Renault", modello: "Clio", targa: "RN101EE" },
     stato: "In approvazione",
     workflow: {
-      overall: States.FASE_FINALE,
+      overall: States.PRONTO_PER_LA_CONSEGNA,
       bo: States.VALIDATO_BO,
     },
     ownerId: T.v2.id,
