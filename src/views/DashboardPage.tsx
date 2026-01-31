@@ -2,7 +2,6 @@ import { useMemo, type ReactNode } from "react";
 import { useFascicoli } from "@/mock/useFascicoliStore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/components/card";
 import { Badge } from "@/ui/components/badge";
-import { formatEuro } from "@/lib/utils";
 import { States, type StateCode } from "@/workflow/states";
 import type { Fascicolo } from "@/mock/fascicoli";
 import {
@@ -164,16 +163,48 @@ export function DashboardPage() {
 
   const kpi = useMemo(() => {
     const total = fascicoli.length;
-    const completati = fascicoli.filter((f) => f.workflow?.overall === States.CONSEGNATO).length;
 
-    const inValidazioneBO = fascicoli.filter((f) => isBackOfficeState(f.workflow?.overall)).length;
-    const prontoConsegna = fascicoli.filter((f) => f.workflow?.overall === States.PRONTO_PER_LA_CONSEGNA).length;
-    const inControlloConsegna = fascicoli.filter((f) => isVrcConsegnaState(f.workflow?.overall)).length;
-    const inDeliveryArea = fascicoli.filter((f) => isDeliveryAreaState(f.workflow?.overall)).length;
+    const findEventAt = (f: Fascicolo, contains: string): Date | null => {
+      const hit = f.timeline?.find((t) => (t.event ?? "").includes(contains));
+      if (!hit?.at) return null;
+      const d = new Date(hit.at);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
 
-    const valoreTot = fascicoli.reduce((sum, f) => sum + (f.valore ?? 0), 0);
+    const createdAt = (f: Fascicolo): Date | null => {
+      const d = new Date(f.createdAt);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
 
-    return { total, completati, inValidazioneBO, prontoConsegna, inControlloConsegna, inDeliveryArea, valoreTot };
+    const daysBetween = (a: Date, b: Date) => (b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24);
+
+    const avg = (values: number[]) => {
+      if (!values.length) return null;
+      return values.reduce((s, v) => s + v, 0) / values.length;
+    };
+
+    // Creazione → Approvato
+    const approvalDurations: number[] = [];
+    // Approvato → Completato
+    const postApprovalDurations: number[] = [];
+    // Creazione → Completato
+    const totalDurations: number[] = [];
+
+    for (const f of fascicoli) {
+      const c = createdAt(f);
+      const a = findEventAt(f, "Fascicolo approvato");
+      const done = findEventAt(f, "Consegna completata");
+
+      if (c && a) approvalDurations.push(daysBetween(c, a));
+      if (a && done) postApprovalDurations.push(daysBetween(a, done));
+      if (c && done) totalDurations.push(daysBetween(c, done));
+    }
+
+    const avgApprovalDays = avg(approvalDurations);
+    const avgPostApprovalDays = avg(postApprovalDurations);
+    const avgTotalDays = avg(totalDurations);
+
+    return { total, avgApprovalDays, avgPostApprovalDays, avgTotalDays };
   }, [fascicoli]);
 
   const macroStatusData = useMemo<ChartDatum[]>(() => {
@@ -261,33 +292,30 @@ export function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <DashboardCard title="Fascicoli" description="Totale a sistema" value={kpi.total} />
+
         <DashboardCard
-          title="Validazione BO"
-          description="Fascicoli in lavorazione BackOffice"
-          value={kpi.inValidazioneBO}
-          badge={<Badge>BackOffice</Badge>}
+          title="Tempo medio approvazione"
+          description="Creazione → Approvato"
+          value={kpi.avgApprovalDays == null ? "—" : `${kpi.avgApprovalDays.toFixed(1)} gg`}
+          badge={<Badge>⏱️</Badge>}
         />
+
         <DashboardCard
-          title="Pronto consegna"
-          description="Presi in carico da Operatore consegna"
-          value={kpi.prontoConsegna}
-          badge={<Badge variant="warning">Operatore</Badge>}
+          title="Tempo medio consegna"
+          description="Approvato → Completato"
+          value={kpi.avgPostApprovalDays == null ? "—" : `${kpi.avgPostApprovalDays.toFixed(1)} gg`}
+          badge={<Badge variant="warning">🚚</Badge>}
         />
+
         <DashboardCard
-          title="Controllo consegna"
-          description="In lavorazione al controllo consegna"
-          value={kpi.inControlloConsegna}
-          badge={<Badge variant="warning">VRC</Badge>}
-        />
-        <DashboardCard
-          title="Valore"
-          description="Somma valore vendite"
-          value={formatEuro(kpi.valoreTot)}
-          badge={<Badge variant="success">€</Badge>}
+          title="Tempo medio complessivo"
+          description="Creazione → Completato"
+          value={kpi.avgTotalDays == null ? "—" : `${kpi.avgTotalDays.toFixed(1)} gg`}
+          badge={<Badge variant="success">⏳</Badge>}
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+<div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Distribuzione per macro-stato</CardTitle>
@@ -365,15 +393,6 @@ export function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard
-          title="Completati"
-          description="Fascicoli conclusi"
-          value={kpi.completati}
-          badge={<Badge variant="success">OK</Badge>}
-        />
       </div>
     </div>
   );
