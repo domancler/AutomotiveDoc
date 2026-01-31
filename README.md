@@ -1,242 +1,152 @@
-# AutomotiveDoc – Flusso di gestione del fascicolo
+# AutomotiveDoc
 
-Questo documento descrive il **ciclo di vita completo di un fascicolo** all’interno dell’applicazione AutomotiveDoc, specificando:
-
-- **stati**
-- **ruoli coinvolti**
-- **azioni consentite**
-- **regole di avanzamento**
-- **posizionamento nei tab dell’interfaccia**
-
-Il flusso è basato su **presa in carico esplicita**, **rami indipendenti** e **ritorni controllati verso lo stesso utente**.
+**AutomotiveDoc** è una web application per la gestione digitale dei fascicoli contrattuali in ambito automotive.  
+Il sistema supporta l’intero ciclo di vita di un fascicolo di vendita, dalla creazione iniziale fino alla fase di consegna e completamento, garantendo tracciabilità, controllo documentale e una chiara separazione delle responsabilità tra i diversi ruoli aziendali coinvolti.
 
 ---
 
-## Concetti chiave
+## Ciclo di vita del fascicolo
 
-- **Disponibili**
-  - Fascicoli non presi in carico
-  - Sola lettura
-- **In corso**
-  - Fascicoli presi in carico dall’utente loggato
-  - Operativi
-- **Prendi in carico**
-  - Azione che assegna il fascicolo all’utente
-- **Procedi**
-  - Unica azione di avanzamento del flusso
-  - Il comportamento dipende dallo stato e dalla completezza dei documenti
-- **Ritorni controllati**
-  - Quando sono richieste integrazioni, il fascicolo torna **sempre allo stesso utente** che lo aveva in carico in quella fase
+Un fascicolo rappresenta l’insieme strutturato dei documenti necessari alla gestione di una pratica di vendita.
 
----
+Il ciclo di vita del fascicolo è articolato nei seguenti stati:
 
-## 1. Venditore – Avvio del fascicolo
+1. **Bozza**  
+   Stato iniziale del fascicolo.  
+   Il fascicolo è visibile esclusivamente ai venditori e non è ancora preso in carico.
 
-### Stato: **Bozza**
-- **Ruolo**: Venditore
-- **Tab**: Disponibili
-- **Descrizione**: fascicolo iniziale, non ancora assegnato
-- **Permessi**: sola lettura
+2. **Nuovo**  
+   Il venditore prende in carico il fascicolo.  
+   Da questo momento può:
+  - aggiungere tipologie documentali
+  - caricare documenti
+  - inserire note
 
-**Azione**
-- *Prendi in carico* → il fascicolo passa al venditore
+3. **In attesa di presa in carico**  
+   Il fascicolo è stato inoltrato a uno dei rami di BackOffice ed è in attesa che un operatore lo prenda in carico.
 
----
+4. **In verifica**  
+   Il fascicolo è preso in carico da un operatore di BackOffice che sta verificando la documentazione richiesta.
 
-### Stato: **Nuovo**
-- **Ruolo**: Venditore
-- **Tab**: In corso
-- **Permessi**:
-  - aggiunta tipologie (di qualunque sezione)
-  - caricamento documenti
-  - inserimento note
+5. **Da controllare**  
+   Il fascicolo presenta anomalie o documentazione incompleta e richiede integrazioni da parte dello step precedente.
 
-**Regola Procedi**
-- Se **esiste almeno una tipologia senza documento** → Procedi **non consentito**
-- Se **tutte le tipologie hanno il documento** → Procedi consentito
+6. **Validato**  
+   La fase di verifica del singolo ramo di BackOffice è conclusa con esito positivo.
 
-**Procedi**
-→ il fascicolo entra nello stato **In validazione**
+7. **Approvato**  
+   Tutte le verifiche documentali sono state completate.  
+   Il fascicolo è pronto per la fase di consegna.
 
----
+8. **Consegna - in attesa di verifica**  
+   Il fascicolo è inoltrato alla fase di consegna ed è in attesa di presa in carico.
 
-## 2. Back Office – Validazione (BO / BOF / BOU)
+9. **Consegna - in verifica**  
+   L’operatore di consegna sta verificando la documentazione necessaria alla consegna del veicolo.
 
-La validazione è composta da **tre rami paralleli e indipendenti**:
-- Back Office Anagrafico
-- Back Office Finanziario
-- Back Office Permuta
+10. **Consegna - da controllare**  
+    Sono richieste integrazioni o correzioni nella fase di consegna.
 
-Ogni ramo ha **stato e presa in carico propri**.
+11. **Completato**  
+    Il processo è concluso e il fascicolo risulta completato.
 
 ---
 
-### Stato: **In validazione – In attesa di presa in carico**
-- **Ruolo**: BO
-- **Tab**: Disponibili
-- **Permessi**: sola lettura
+## Visibilità dei fascicoli
 
-**Azione**
-- *Prendi in carico* (per il singolo ramo BO)
+L’interfaccia distingue i fascicoli nelle seguenti sezioni:
 
----
+- **Disponibili**  
+  Fascicoli che l’utente, in base al proprio ruolo, può prendere in carico.
 
-### Stato: **In validazione – In verifica**
-- **Ruolo**: BO che ha preso in carico
-- **Tab**: In corso
-- **Permessi**:
-  - gestione tipologie e documenti **solo della propria sezione**
+- **In corso**  
+  Fascicoli attualmente presi in carico dall’utente e sui quali può operare.
 
-**Procedi**
-- Se **tutte le tipologie hanno il documento**
-  → il ramo passa a **Validato**
-- Se **mancano documenti**
-  → il ramo passa a **Da controllare**
-  → il fascicolo torna **allo stesso venditore** che lo aveva in carico
+- **Tutti**  
+  Elenco completo dei fascicoli, consultabili in modalità **sola lettura**.
+
+La consultazione globale dei fascicoli è una scelta progettuale volta a favorire il monitoraggio e la trasparenza del processo, senza incidere sulle responsabilità operative.
 
 ---
 
-### Stato: **Da controllare**
-- Stato del singolo ramo BO
-- Indica che sono richieste integrazioni
+## Ruoli utente
 
-**Comportamento**
-- Il venditore carica i documenti mancanti
-- **Procedi**
-  → il fascicolo torna **allo stesso BO**
-  → stato: **In validazione – In verifica**
-
-Il BO ripete la verifica con la stessa logica.
+Il sistema distingue tra **ruoli operativi**, che intervengono direttamente nel flusso del fascicolo, e **ruoli di governance e configurazione**, che svolgono funzioni di controllo, supervisione e configurazione del sistema.
 
 ---
 
-### Stato: **Validato**
-- Stato interno del singolo ramo BO
-- Il ramo è concluso positivamente
+## Ruoli operativi
+
+### Venditore
+- Crea i fascicoli in stato di **Bozza**
+- Prende in carico i fascicoli portandoli allo stato **Nuovo**
+- Inserisce tipologie documentali, documenti e note
+- Avvia il processo di validazione
+- Può operare sul fascicolo fino allo stato **Approvato**, incluse eventuali integrazioni richieste
 
 ---
 
-### Passaggio automatico
-Quando **tutti e tre i rami BO sono in stato Validato**:
-→ il fascicolo passa allo stato **Approvato**
+### BackOffice Anagrafico
+### BackOffice Finanziario
+### BackOffice Permuta
+
+- Prendono in carico il fascicolo nel proprio ramo di competenza
+- Verificano la documentazione richiesta
+- Possono richiedere integrazioni documentali (stato **Da controllare**)
+- Completano la verifica portando il fascicolo allo stato **Validato**
+
+Quando un fascicolo viene restituito a uno step precedente, torna **sempre allo stesso operatore** che lo aveva precedentemente preso in carico.
 
 ---
 
-## 3. Stato Approvato e riapertura
-
-### Stato: **Approvato**
-- Tutti i BO hanno validato il fascicolo
-- Il venditore **può ancora agire solo in questa fase**
-
----
-
-### Riapertura proposta dal venditore
-- Il venditore può **richiedere la riapertura** del fascicolo
-- Il fascicolo ricompare negli **In corso** dei BO originali
-- È visibile che è stata proposta una riapertura
-
-**Accettazione**
-- Se **uno qualsiasi dei BO** fa *Riapri*:
-  - il fascicolo viene riaperto per **tutti e tre**
-  - stati risultanti:
-    - BO che accetta → **In validazione – In verifica**
-    - altri BO → **In validazione – Validato**
+### Operatore Consegna
+- Gestisce il fascicolo nella fase di consegna
+- Inserisce e verifica la documentazione necessaria alla consegna
+- Può inoltrare il fascicolo allo stato **Consegna - in verifica**
 
 ---
 
-### Riapertura diretta da parte dei BO
-- I BO che avevano validato il fascicolo possono:
-  - riaprire **anche senza proposta del venditore**
-
-**Effetto**
-- stesso comportamento della riapertura proposta
-- stessi BO di prima
-- stati differenziati come sopra
+### Controllo Consegna
+- Effettua le verifiche finali sulla documentazione di consegna
+- Può richiedere integrazioni (stato **Consegna - da controllare**)
+- Conclude il processo portando il fascicolo allo stato **Completato**
 
 ---
 
-### Fine ruolo venditore
-- Superata la fase **Approvato** (senza riapertura):
-  - il ruolo del venditore è concluso
+## Ruoli di governance e configurazione
+
+### Admin
+Profilo utente con funzioni esclusivamente amministrative sul sistema.
+
+- Accede alle funzionalità di configurazione applicativa
+- Gestisce le proprietà delle tipologie documentali (es. obbligatorietà, derogabilità, cancellazione)
+- Svolge attività di consultazione e controllo
+- Non interviene nel flusso operativo dei fascicoli
+- Non prende in carico fascicoli né modifica gli stati
+
+Le funzionalità associate a questo ruolo sono riconducibili a configurazioni di sistema e non rientrano nel flusso documentale operativo.
 
 ---
 
-## 4. Operatore Consegna
+### Supervisore
+Profilo utente con funzioni di supervisione e governance del processo.
 
-### Stato: **Approvato**
-- **Ruolo**: Operatore consegna
-- **Tab**: Disponibili
-- **Permessi**: sola lettura
+- Dispone di accesso in sola lettura ai fascicoli e alle dashboard
+- Può intervenire in modo eccezionale sul processo effettuando:
+  - riassegnazioni del BackOffice competente nei diversi rami
+- Non opera direttamente sui documenti
+- Non prende in carico i fascicoli
+- Non modifica direttamente gli stati di avanzamento
 
-**Azione**
-- *Prendi in carico*
-
----
-
-### Stato: **Consegna – In corso**
-- **Ruolo**: Operatore consegna
-- **Tab**: In corso
-- **Permessi**:
-  - gestione tipologie e documenti di consegna
-
-**Regola Procedi**
-- Se **esiste almeno una tipologia senza documento** → Procedi non consentito
-- Se tutto completo → Procedi consentito
-
-**Procedi**
-→ stato **Consegna – In attesa di presa in carico**
+Questo ruolo è pensato per attività di monitoraggio, controllo e supporto organizzativo.
 
 ---
 
-## 5. Controllo Consegna
+## Considerazioni progettuali
 
-### Stato: **Consegna – In attesa di presa in carico**
-- **Ruolo**: Controllo consegna
-- **Tab**: Disponibili
+Il modello dei ruoli è stato progettato per:
 
-**Azione**
-- *Prendi in carico*
-
----
-
-### Stato: **In verifica**
-- **Ruolo**: Controllo consegna
-- **Tab**: In corso
-- **Permessi**:
-  - gestione documenti della consegna
-
-**Procedi**
-- Se **mancano documenti**
-  → ritorno **allo stesso operatore consegna**
-- Se tutto corretto
-  → **Completato**
-
----
-
-### Ritorno dall’operatore consegna
-- L’operatore carica i documenti mancanti
-- **Procedi**
-  → il fascicolo torna **direttamente allo stesso controllo consegna**
-  → stato **In verifica**
-
----
-
-## 6. Stato finale
-
-### Stato: **Completato**
-- Ciclo di vita concluso
-- Fascicolo consultabile
-- Nessuna operazione consentita
-
----
-
-## Regole fondamentali
-
-- **Disponibili ≠ In corso**
-  - Disponibili: non preso in carico, sola lettura
-  - In corso: preso in carico, operazioni abilitate
-- **Procedi è l’unica azione di avanzamento**
-- **Ogni ramo BO è indipendente**
-- **I ritorni avvengono sempre verso lo stesso utente**
-- **Le tipologie senza documenti bloccano l’avanzamento**
-- **La riapertura mantiene i BO originali**
+- garantire una chiara separazione delle responsabilità
+- limitare le azioni operative ai soli ruoli coinvolti nel processo
+- mantenere i ruoli di configurazione e supervisione separati dal flusso documentale
+- favorire la tracciabilità delle operazioni e la coerenza del ciclo di vita del fascicolo
