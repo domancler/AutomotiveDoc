@@ -141,7 +141,7 @@ function DashboardCard(props: {
   title: string;
   description: string;
   value: ReactNode;
-  badge?: React.ReactNode;
+  badge?: ReactNode;
 }) {
   const { title, description, value, badge } = props;
   return (
