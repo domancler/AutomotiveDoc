@@ -18,7 +18,7 @@ export function Topbar() {
         <div className="flex items-center gap-3">
           <Link to="/dashboard" className="flex items-center gap-2">
             <img
-              src="/assets/favicon-32x32.png"
+              src="/public/favicon-32x32.png"
               alt="AutomotiveDoc"
               className="h-6 w-6"
               loading="eager"
