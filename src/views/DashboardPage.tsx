@@ -20,7 +20,27 @@ import {
 
 type ChartDatum = { name: string; value: number };
 
-const COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#22d3ee", "#fb7185"];
+const CHART_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-6))",
+];
+
+const GRID_STROKE = "hsl(var(--border))";
+const AXIS_STROKE = "hsl(var(--border))";
+const TICK_FILL = "hsl(var(--muted-foreground))";
+const TOOLTIP_STYLE = {
+  backgroundColor: "hsl(var(--popover))",
+  border: `1px solid hsl(var(--border))`,
+  borderRadius: 12,
+  color: "hsl(var(--foreground))",
+} as const;
+const TOOLTIP_LABEL_STYLE = { color: "hsl(var(--foreground))", fontWeight: 600 } as const;
+const TOOLTIP_ITEM_STYLE = { color: "hsl(var(--foreground))" } as const;
+const LEGEND_STYLE = { color: "hsl(var(--muted-foreground))", fontSize: 12 } as const;
 
 function isBackOfficeState(code?: StateCode): boolean {
   if (!code) return false;
@@ -345,13 +365,21 @@ export function DashboardPage() {
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={macroStatusData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={105}>
+                <Pie
+                  data={macroStatusData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={60}
+                  outerRadius={105}
+                  stroke="hsl(var(--background))"
+                  strokeWidth={2}
+                >
                   {macroStatusData.map((_, idx) => (
-                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
+                <Legend wrapperStyle={LEGEND_STYLE} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -365,11 +393,21 @@ export function DashboardPage() {
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={progressData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#60a5fa" />
+                <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" strokeOpacity={0.35} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: TICK_FILL, fontSize: 12 }}
+                  axisLine={{ stroke: AXIS_STROKE }}
+                  tickLine={{ stroke: AXIS_STROKE }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fill: TICK_FILL, fontSize: 12 }}
+                  axisLine={{ stroke: AXIS_STROKE }}
+                  tickLine={{ stroke: AXIS_STROKE }}
+                />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
+                <Bar dataKey="value" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -385,11 +423,21 @@ export function DashboardPage() {
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={boDetailData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#34d399" />
+                <CartesianGrid stroke={GRID_STROKE} strokeDasharray="3 3" strokeOpacity={0.35} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: TICK_FILL, fontSize: 12 }}
+                  axisLine={{ stroke: AXIS_STROKE }}
+                  tickLine={{ stroke: AXIS_STROKE }}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fill: TICK_FILL, fontSize: 12 }}
+                  axisLine={{ stroke: AXIS_STROKE }}
+                  tickLine={{ stroke: AXIS_STROKE }}
+                />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
+                <Bar dataKey="value" fill={CHART_COLORS[1]} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -403,13 +451,21 @@ export function DashboardPage() {
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={consegnaDetailData} dataKey="value" nameKey="name" innerRadius={60} outerRadius={105}>
+                <Pie
+                  data={consegnaDetailData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={60}
+                  outerRadius={105}
+                  stroke="hsl(var(--background))"
+                  strokeWidth={2}
+                >
                   {consegnaDetailData.map((_, idx) => (
-                    <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
+                <Legend wrapperStyle={LEGEND_STYLE} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>

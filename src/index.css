@@ -32,6 +32,14 @@
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
   --ring: 222.2 84% 4.9%;
+
+  /* Chart palette (theme-aware, muted/professional) */
+  --chart-1: 221 60% 52%; /* blue */
+  --chart-2: 168 45% 42%; /* teal */
+  --chart-3: 262 45% 58%; /* violet */
+  --chart-4: 34 55% 54%;  /* amber */
+  --chart-5: 0 55% 54%;   /* red */
+  --chart-6: 200 45% 50%; /* cyan */
 }
 
 .dark {
@@ -62,6 +70,14 @@
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
   --ring: 212.7 26.8% 83.9%;
+
+  /* Chart palette (theme-aware, muted/professional) */
+  --chart-1: 221 60% 62%; /* blue */
+  --chart-2: 168 45% 55%; /* teal */
+  --chart-3: 262 45% 68%; /* violet */
+  --chart-4: 34 55% 62%;  /* amber */
+  --chart-5: 0 55% 62%;   /* red */
+  --chart-6: 200 45% 60%; /* cyan */
 }
 
 * { @apply border-border; }
