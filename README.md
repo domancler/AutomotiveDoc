@@ -112,6 +112,7 @@ Il sistema distingue tra **ruoli operativi**, che intervengono direttamente nel 
 - Prende in carico i fascicoli portandoli allo stato **Nuovo**
 - Inserisce tipologie documentali, documenti e note
 - Avvia il processo di validazione
+- In caso di integrazioni richieste da un BackOffice (stato **Da controllare**), carica i documenti mancanti e con **Procedi** reinoltra il fascicolo che torna allo **stesso BackOffice** in **In verifica**
 - Può operare sul fascicolo fino allo stato **Approvato**, incluse eventuali integrazioni richieste
 - Può annullare il fascicolo se responsabile dello stesso nella fase corrente
 

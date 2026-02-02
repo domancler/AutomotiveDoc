@@ -199,16 +199,61 @@ export function applyWorkflowAction(
 
     // --- COMMERCIALE ---
     case "FASCICOLO.SEND_AS_COMM": {
-      // fan-out: entra nella fase BO e imposta i rami richiesti in attesa presa in carico
+      // fan-out: entra nella fase BO.
+      // Caso A (prima validazione): rami richiesti -> "in attesa di presa in carico"
+      // Caso B (ritorno da "da controllare"): torna allo STESSO BO in "in verifica" (senza ri-passare da TAKE)
+
       setOverall(States.DA_VALIDARE_BO);
-      setBranch("bo", States.DA_VALIDARE_BO);
-      setBranch("bof", States.DA_VALIDARE_BOF);
-      setBranch("bou", States.DA_VALIDARE_BOU);
+
+      const bo = next.workflow?.bo as any;
+      const bof = next.workflow?.bof as any;
+      const bou = next.workflow?.bou as any;
+
+      // BO (sempre attivo)
+      if (bo === States.DA_RIVEDERE_BO && next.lastInChargeBO) {
+        setBranch("bo", States.VERIFICHE_BO);
+        next = { ...next, inChargeBO: next.lastInChargeBO };
+      } else {
+        setBranch("bo", States.DA_VALIDARE_BO);
+        next = { ...next, inChargeBO: null };
+      }
+
+      // BOF (solo se attivo)
+      if (req.bof) {
+        if (bof === States.DA_RIVEDERE_BOF && next.lastInChargeBOF) {
+          setBranch("bof", States.VERIFICHE_BOF);
+          next = { ...next, inChargeBOF: next.lastInChargeBOF };
+        } else {
+          setBranch("bof", States.DA_VALIDARE_BOF);
+          next = { ...next, inChargeBOF: null };
+        }
+      } else {
+        next = { ...next, inChargeBOF: null };
+      }
+
+      // BOU (solo se attivo)
+      if (req.bou) {
+        if (bou === States.DA_RIVEDERE_BOU && next.lastInChargeBOU) {
+          setBranch("bou", States.VERIFICHE_BOU);
+          next = { ...next, inChargeBOU: next.lastInChargeBOU };
+        } else {
+          setBranch("bou", States.DA_VALIDARE_BOU);
+          next = { ...next, inChargeBOU: null };
+        }
+      } else {
+        next = { ...next, inChargeBOU: null };
+      }
 
       next = {
         ...next,
         progress: Math.max(next.progress ?? 0, 55),
-        timeline: pushTimeline(next, actorName, "Inviato ai BackOffice"),
+        timeline: pushTimeline(
+          next,
+          actorName,
+          bo === States.DA_RIVEDERE_BO || bof === States.DA_RIVEDERE_BOF || bou === States.DA_RIVEDERE_BOU
+            ? "Integrazioni inviate ai BackOffice"
+            : "Inviato ai BackOffice",
+        ),
       };
       return next;
     }

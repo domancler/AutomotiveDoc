@@ -73,8 +73,10 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
   return {
     state,
     ownerId: anyF.ownerId ?? (f.ownerId ?? undefined),
-    hasFinanziamento: anyF.hasFinanziamento ?? !!anyF.workflow?.bof,
-    hasPermuta: anyF.hasPermuta ?? !!anyF.workflow?.bou,
+    // Un ramo è attivo solo se previsto dal dominio (flag) o se presente esplicitamente nel workflow.
+    // (Evita che BOF/BOU lavorino fascicoli non previsti per loro.)
+    hasFinanziamento: Boolean(anyF.hasFinanziamento) || Boolean(anyF.workflow?.bof),
+    hasPermuta: Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou),
     inChargeBO: anyF.inChargeBO ?? null,
     inChargeBOF: anyF.inChargeBOF ?? null,
     inChargeBOU: anyF.inChargeBOU ?? null,

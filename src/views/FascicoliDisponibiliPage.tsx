@@ -84,10 +84,10 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
   return {
     state,
     ownerId: anyF.ownerId ?? (f.ownerId ?? undefined),
-    // Se il ramo esiste nel workflow, l'area è da considerare attiva (anche se i flag nel mock sono incompleti).
-    // Se il ramo esiste (o lo stiamo inferendo), l’area è attiva.
-    hasFinanziamento: Boolean(anyF.hasFinanziamento) || Boolean(anyF.workflow?.bof) || overall === States.DA_VALIDARE_BO,
-    hasPermuta: Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou) || overall === States.DA_VALIDARE_BO,
+    // Un ramo è attivo solo se previsto dal dominio (flag) o se presente esplicitamente nel workflow.
+    // (Evita che BOF/BOU vedano fascicoli non di loro competenza.)
+    hasFinanziamento: Boolean(anyF.hasFinanziamento) || Boolean(anyF.workflow?.bof),
+    hasPermuta: Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou),
     inChargeBO: anyF.inChargeBO ?? null,
     inChargeBOF: anyF.inChargeBOF ?? null,
     inChargeBOU: anyF.inChargeBOU ?? null,

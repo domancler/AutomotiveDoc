@@ -142,9 +142,10 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
     })(),
     // Se esiste il ramo nel workflow, l'area è attiva anche se i flag nel mock sono incompleti.
     // Se il ramo esiste (o lo stiamo inferendo), l’area è attiva.
-    hasFinanziamento:
-      Boolean(anyF.hasFinanziamento) || hasProvaPagamentoDoc(f) || Boolean(anyF.workflow?.bof) || overall === States.DA_VALIDARE_BO,
-    hasPermuta: Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou) || overall === States.DA_VALIDARE_BO,
+    // Un ramo è attivo solo se previsto dal dominio (flag) o se presente esplicitamente nel workflow.
+    // (Evita che BOF/BOU vedano azioni quando il fascicolo non li prevede.)
+    hasFinanziamento: Boolean(anyF.hasFinanziamento) || hasProvaPagamentoDoc(f) || Boolean(anyF.workflow?.bof),
+    hasPermuta: Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou),
     inChargeBO: anyF.inChargeBO ?? null,
     inChargeBOF: anyF.inChargeBOF ?? null,
     inChargeBOU: anyF.inChargeBOU ?? null,
@@ -189,7 +190,7 @@ function niceStateLabel(state?: string) {
     case States.APPROVATO:
       return "Approvato";
     case States.IN_FINALIZZAZIONE:
-      return "Pronto per la consegna";
+      return "In finalizzazione";
     case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
       return "Consegna - in attesa di presa in carico";
     case States.CONSEGNA_IN_VERIFICA:
