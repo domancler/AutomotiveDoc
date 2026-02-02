@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { ThemeMenu } from "@/ui/theme/ThemeMenu";
 import { useAuth } from "@/auth/AuthProvider";
-import { can, roleHasTakeAction } from "@/auth/can";
+import { roleHasTakeAction } from "@/auth/can";
 import { UserMenu } from "@/ui/user/UserMenu";
 
 export function Topbar() {
@@ -10,7 +10,7 @@ export function Topbar() {
   const { user } = useAuth();
 
   const showTakeTabs = !!user && roleHasTakeAction(user.role);
-  const canViewAll = !!user && can(user, "FASCICOLO.VIEW_ALL");
+  const canViewAll = !!user;
 
   // Link coerente con i tab realmente disponibili per il ruolo.
   // Se il ruolo non prevede la presa in carico, deve tornare a "Tutti".

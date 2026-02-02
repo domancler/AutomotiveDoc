@@ -73,6 +73,11 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   // - disponibile in tutti gli stati tranne Bozza
   // - solo owner del fascicolo “in mano” (nel momento corrente) oppure supervisore (RESPONSABILE)
   if (action === "FASCICOLO.CANCEL") {
+
+  // Lettura generale: tutti i ruoli devono poter vedere Dashboard e tab 'Tutti'
+  if (action === "DASHBOARD.VIEW") return true;
+  if (action === "FASCICOLO.VIEW_ALL") return true;
+
     if (!fascicolo) return false;
     if (!state || state === States.BOZZA || state === States.ANNULLATO) return false;
     // supervisore: sempre (a prescindere da chi lo ha in carico)
