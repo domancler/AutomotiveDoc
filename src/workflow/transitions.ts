@@ -15,9 +15,10 @@ function normalizeStato(next: Fascicolo, overall?: StateCode): Fascicolo["stato"
   if (overall === States.APPROVATO) return "Approvato";
   if (overall === States.COMPLETATO) return "Completato";
 
+  if (overall === States.IN_FINALIZZAZIONE) return "In finalizzazione";
+
   // --- Consegna ---
-  if (overall === States.IN_FINALIZZAZIONE || overall === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO)
-    return "Consegna – in attesa di presa in carico";
+  if (overall === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO) return "Consegna – in attesa di presa in carico";
   if (overall === States.CONSEGNA_IN_VERIFICA) return "Consegna – in verifica";
   if (overall === States.CONSEGNA_DA_CONTROLLARE) return "Consegna – da controllare";
 

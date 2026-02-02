@@ -8,6 +8,7 @@ export type FascicoloStato =
   | "Da controllare"
   | "Validato"
   | "Approvato"
+  | "In finalizzazione"
   | "Consegna – in attesa di presa in carico"
   | "Consegna – in verifica"
   | "Consegna – da controllare"
