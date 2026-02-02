@@ -515,8 +515,8 @@ export function FascicoloDettaglioPage() {
         </TabsList>
 
         <TabsContent value="overview">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
+          <div className="grid gap-4 lg:grid-cols-4">
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>Cliente</CardTitle>
                 <CardDescription>Dati essenziali</CardDescription>
@@ -528,7 +528,7 @@ export function FascicoloDettaglioPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>Veicolo</CardTitle>
                 <CardDescription>Informazioni auto</CardDescription>
@@ -538,6 +538,83 @@ export function FascicoloDettaglioPage() {
                 <div><span className="text-muted-foreground">Modello:</span> {fascicolo.veicolo.modello}</div>
                 <div><span className="text-muted-foreground">Targa:</span> {fascicolo.veicolo.targa ?? "—"}</div>
                 <div><span className="text-muted-foreground">VIN:</span> {fascicolo.veicolo.vin ?? "—"}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Pagamento</CardTitle>
+                <CardDescription>Condizioni e modalità</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm space-y-1">
+                <div>
+                  <span className="text-muted-foreground">Modalità:</span>{" "}
+                  {fascicolo.pagamento?.tipo ?? (fascicolo.hasFinanziamento ? "Finanziamento" : "Pagamento diretto")}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Acconto:</span>{" "}
+                  {fascicolo.pagamento?.acconto != null ? formatEuro(fascicolo.pagamento.acconto) : "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Importo finanziato:</span>{" "}
+                  {fascicolo.hasFinanziamento
+                    ? fascicolo.pagamento?.importoFinanziato != null
+                      ? formatEuro(fascicolo.pagamento.importoFinanziato)
+                      : "—"
+                    : "Non previsto"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Durata:</span>{" "}
+                  {fascicolo.hasFinanziamento
+                    ? fascicolo.pagamento?.durataMesi != null
+                      ? `${fascicolo.pagamento.durataMesi} mesi`
+                      : "—"
+                    : "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Rata:</span>{" "}
+                  {fascicolo.hasFinanziamento
+                    ? fascicolo.pagamento?.rataMensile != null
+                      ? `${formatEuro(fascicolo.pagamento.rataMensile)}/mese`
+                      : "—"
+                    : "—"}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Permuta</CardTitle>
+                <CardDescription>Usato / veicolo in ritiro</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm space-y-1">
+                <div>
+                  <span className="text-muted-foreground">Prevista:</span> {fascicolo.hasPermuta ? "Sì" : "No"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Veicolo:</span>{" "}
+                  {fascicolo.hasPermuta ? fascicolo.permuta?.veicolo ?? "—" : "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Targa:</span>{" "}
+                  {fascicolo.hasPermuta ? fascicolo.permuta?.targa ?? "—" : "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">KM:</span>{" "}
+                  {fascicolo.hasPermuta
+                    ? fascicolo.permuta?.km != null
+                      ? fascicolo.permuta.km.toLocaleString("it-IT")
+                      : "—"
+                    : "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Valore stimato:</span>{" "}
+                  {fascicolo.hasPermuta
+                    ? fascicolo.permuta?.valoreStimato != null
+                      ? formatEuro(fascicolo.permuta.valoreStimato)
+                      : "—"
+                    : "—"}
+                </div>
               </CardContent>
             </Card>
           </div>

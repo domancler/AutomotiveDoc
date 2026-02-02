@@ -89,6 +89,25 @@ export type Fascicolo = {
   /** Flag di dominio: abilita ramo permuta */
   hasPermuta?: boolean;
 
+  /** Condizioni di pagamento (overview) */
+  pagamento?: {
+    tipo: "Bonifico" | "Contanti" | "Finanziamento";
+    acconto?: number;
+    importoFinanziato?: number;
+    durataMesi?: number;
+    rataMensile?: number;
+    note?: string;
+  };
+
+  /** Dati permuta/usato (overview) */
+  permuta?: {
+    veicolo?: string;
+    targa?: string;
+    km?: number;
+    valoreStimato?: number;
+    note?: string;
+  };
+
   createdAt: string;
   updatedAt: string;
   valore: number;
@@ -154,6 +173,7 @@ export const fascicoli: Fascicolo[] = [
     stato: "Bozza",
     workflow: { overall: States.BOZZA, bo: States.BOZZA, bof: States.BOZZA },
     hasFinanziamento: true,
+    pagamento: { tipo: "Finanziamento", acconto: 3000, importoFinanziato: 25900, durataMesi: 60, rataMensile: 520 },
     ownerId: null,
     assegnatario: "—",
     createdAt: isoDaysAgo(5),
@@ -174,6 +194,7 @@ export const fascicoli: Fascicolo[] = [
     stato: "Nuovo",
     workflow: { overall: States.NUOVO, bo: States.NUOVO, bof: States.NUOVO },
     hasFinanziamento: true,
+    pagamento: { tipo: "Finanziamento", acconto: 1500, importoFinanziato: 14950, durataMesi: 48, rataMensile: 360 },
     ownerId: T.v1.id,
     assegnatario: T.v1.name,
     createdAt: isoDaysAgo(12),
@@ -205,7 +226,9 @@ export const fascicoli: Fascicolo[] = [
       bou: States.DA_VALIDARE_BOU,
     },
     hasFinanziamento: true,
+    pagamento: { tipo: "Finanziamento", acconto: 4000, importoFinanziato: 20800, durataMesi: 72, rataMensile: 390 },
     hasPermuta: true,
+    permuta: { veicolo: "Ford Fiesta 1.0 EcoBoost", targa: "FD321ZX", km: 78000, valoreStimato: 6200 },
     ownerId: T.v2.id,
     assegnatario: T.v2.name,
     createdAt: isoDaysAgo(20),
@@ -270,6 +293,7 @@ export const fascicoli: Fascicolo[] = [
       bou: States.DA_VALIDARE_BOU,
     },
     hasPermuta: true,
+    permuta: { veicolo: "Renault Clio 1.5 dCi", targa: "RN987TT", km: 112000, valoreStimato: 3800 },
     ownerId: T.v2.id,
     assegnatario: T.v2.name,
     createdAt: isoDaysAgo(9),
@@ -301,7 +325,9 @@ export const fascicoli: Fascicolo[] = [
       bou: States.VALIDATO_BOU,
     },
     hasFinanziamento: true,
+    pagamento: { tipo: "Finanziamento", acconto: 3500, importoFinanziato: 24300, durataMesi: 60, rataMensile: 470 },
     hasPermuta: true,
+    permuta: { veicolo: "Opel Corsa 1.2", targa: "OP654HG", km: 54000, valoreStimato: 7200 },
     ownerId: T.v1.id,
     assegnatario: T.v1.name,
     createdAt: isoDaysAgo(40),
