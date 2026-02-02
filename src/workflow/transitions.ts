@@ -287,7 +287,7 @@ export function applyWorkflowAction(
       // Effetto (README):
       // - il fascicolo rientra in validazione
       // - il BO che accetta va "In verifica"
-      // - gli altri BO restano "Validato"
+      // - gli altri rami BO restano "In validazione – Validato" (micro-stato di ramo)
       if ((next.workflow?.overall as any) !== States.APPROVATO) return next;
 
       const role = actor.role;

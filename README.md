@@ -31,31 +31,31 @@ Il ciclo di vita del fascicolo è articolato nei seguenti stati:
 5. **Da controllare**  
    Il fascicolo presenta anomalie o documentazione incompleta e richiede integrazioni da parte dello step precedente.
 
-6. **Validato**  
-   La fase di verifica del singolo ramo di BackOffice è conclusa con esito positivo.
+> Nota: **“Validato” non è uno stato macro** del fascicolo.
+> È un **micro-stato del singolo ramo di BackOffice** (es. BO/BOF/BOU) e viene mostrato come **“In validazione – Validato”**.
 
-7. **Approvato**  
+6. **Approvato**  
    Tutte le verifiche documentali dei rami attivi sono state completate.  
    Il fascicolo è pronto per la fase finale.
 
-8. **In finalizzazione**  
+7. **In finalizzazione**  
    Il fascicolo è preso in carico dall’Operatore Consegna per completare le attività conclusive (caricamento documenti, verifiche operative, predisposizione alla consegna).
 
-9. **Consegna – in attesa di presa in carico**  
+8. **Consegna – in attesa di presa in carico**  
    L’Operatore Consegna inoltra il fascicolo alla fase di controllo consegna.  
    Il fascicolo è in attesa che il Controllo Consegna lo prenda in carico.
 
-10. **Consegna – in verifica**  
+9. **Consegna – in verifica**  
     Il Controllo Consegna sta verificando la documentazione e può concludere l’iter oppure richiedere integrazioni.
 
-11. **Consegna – da controllare**  
+10. **Consegna – da controllare**  
     Il Controllo Consegna richiede integrazioni all’Operatore Consegna.  
     Dopo gli adeguamenti, l’Operatore Consegna inoltra nuovamente il fascicolo che torna in **Consegna – in verifica**.
 
-12. **Completato**  
+11. **Completato**  
     Il processo è concluso con esito positivo e il fascicolo risulta completato.
 
-13. **Annullato**  
+12. **Annullato**  
     Stato finale alternativo che rappresenta la chiusura definitiva del fascicolo con esito negativo.  
     L’annullamento può avvenire in qualsiasi fase operativa, ad eccezione della **Bozza**, qualora emergano condizioni che rendano impossibile o non opportuno il proseguimento del processo.
 
@@ -125,7 +125,7 @@ Il sistema distingue tra **ruoli operativi**, che intervengono direttamente nel 
 - Prendono in carico il fascicolo nel proprio ramo di competenza
 - Verificano la documentazione richiesta
 - Possono richiedere integrazioni documentali (stato **Da controllare**)
-- Completano la verifica portando il fascicolo allo stato **Validato**
+- Completano la verifica del **proprio ramo** portandolo al micro-stato **In validazione – Validato**
 - Possono annullare il fascicolo se responsabili nella fase corrente
 
 Quando un fascicolo viene restituito a uno step precedente, torna **sempre allo stesso operatore** che lo aveva precedentemente preso in carico.

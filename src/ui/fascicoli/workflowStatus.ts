@@ -34,7 +34,9 @@ function niceStateLabel(state?: StateCode) {
     case States.VALIDATO_BO:
     case States.VALIDATO_BOF:
     case States.VALIDATO_BOU:
-      return "Validato";
+      // NB: "Validato" non è uno stato macro del fascicolo.
+      // È un micro-stato di ramo (validazione BackOffice).
+      return "In validazione – Validato";
 
     case States.APPROVATO:
       return "Approvato";

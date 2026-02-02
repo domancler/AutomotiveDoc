@@ -186,7 +186,8 @@ function niceStateLabel(state?: string) {
     case States.VALIDATO_BO:
     case States.VALIDATO_BOF:
     case States.VALIDATO_BOU:
-      return "Validato";
+      // "Validato" è un micro-stato di ramo (validazione BackOffice), non uno stato macro.
+      return "In validazione – Validato";
     case States.APPROVATO:
       return "Approvato";
     case States.IN_FINALIZZAZIONE:

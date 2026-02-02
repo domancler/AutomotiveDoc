@@ -71,7 +71,8 @@ function macroLabel(code?: StateCode): string {
   if (code === States.DA_RIVEDERE_BO || code === States.DA_RIVEDERE_BOF || code === States.DA_RIVEDERE_BOU)
     return "Da controllare";
   if (code === States.VALIDATO_BO || code === States.VALIDATO_BOF || code === States.VALIDATO_BOU)
-    return "Validato";
+    // "Validato" non è una fase macro: è un micro-stato dei rami di validazione.
+    return "In validazione – Validato";
   if (code === States.APPROVATO) return "Approvato";
   if (code === States.IN_FINALIZZAZIONE || code === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO)
     return "Consegna – in attesa di presa in carico";
@@ -110,7 +111,7 @@ function boMicroLabel(code?: StateCode): string {
     case States.VALIDATO_BO:
     case States.VALIDATO_BOF:
     case States.VALIDATO_BOU:
-      return "Validato";
+      return "In validazione – Validato";
     default:
       return "—";
   }
@@ -227,7 +228,6 @@ export function DashboardPage() {
       "In attesa di presa in carico",
       "In verifica",
       "Da controllare",
-      "Validato",
       "Approvato",
       "Consegna – in attesa di presa in carico",
       "Consegna – in verifica",
@@ -257,7 +257,7 @@ export function DashboardPage() {
       "In attesa di presa in carico",
       "In verifica",
       "Da controllare",
-      "Validato",
+      "In validazione – Validato",
       "—",
     ]);
   }, [fascicoli]);

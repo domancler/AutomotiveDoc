@@ -6,7 +6,6 @@ export type FascicoloStato =
   | "In attesa di presa in carico"
   | "In verifica"
   | "Da controllare"
-  | "Validato"
   | "Approvato"
   | "In finalizzazione"
   | "Consegna – in attesa di presa in carico"
