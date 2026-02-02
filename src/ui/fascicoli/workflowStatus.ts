@@ -49,6 +49,9 @@ function niceStateLabel(state?: StateCode) {
       return "Consegna - da controllare";
     case States.CONSEGNATO:
       return "Completato";
+
+    case States.ANNULLATO:
+      return "Annullato";
   }
 
   return state ?? "—";
@@ -74,6 +77,7 @@ function variantFromState(state?: StateCode): VisibleStatus["variant"] {
   if (state === States.BOZZA) return "secondary";
   if (state === States.CONSEGNATO) return "success";
   if (state === States.APPROVATO) return "success";
+  if (state === States.ANNULLATO) return "danger";
 
   if (
     state === States.DA_RIVEDERE_BO ||
@@ -148,7 +152,19 @@ export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
   }
 
   // se siamo già oltre la validazione BO, tutti vedono lo stato macro
-  if (overall && [States.NUOVO, States.APPROVATO, States.PRONTO_PER_LA_CONSEGNA, States.DA_VALIDARE_CONSEGNA, States.VERIFICHE_CONSEGNA, States.DA_RIVEDERE_VRC, States.CONSEGNATO].includes(overall)) {
+  if (
+    overall &&
+    [
+      States.NUOVO,
+      States.APPROVATO,
+      States.PRONTO_PER_LA_CONSEGNA,
+      States.DA_VALIDARE_CONSEGNA,
+      States.VERIFICHE_CONSEGNA,
+      States.DA_RIVEDERE_VRC,
+      States.CONSEGNATO,
+      States.ANNULLATO,
+    ].includes(overall)
+  ) {
     return toVisibleStatus(overall);
   }
 

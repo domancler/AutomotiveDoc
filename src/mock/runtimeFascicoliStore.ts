@@ -55,8 +55,11 @@ export function dispatchFascicoloAction(args: {
   fascicoloId: string;
   action: Action;
   actor: { id?: string; role?: Role; name?: string };
+  payload?: { note?: string };
 }) {
-  updateFascicolo(args.fascicoloId, (f) => applyWorkflowAction(f, args.action, args.actor));
+  updateFascicolo(args.fascicoloId, (f) =>
+    applyWorkflowAction(f, args.action, args.actor, args.payload)
+  );
 }
 
 export function addDocumentoRow(

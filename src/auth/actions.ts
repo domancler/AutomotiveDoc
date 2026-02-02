@@ -31,6 +31,9 @@ export type Action =
   | "VRC.VALIDATE"
   | "VRC.REQUEST_FIX"
 
+  // annullamento (finale alternativo)
+  | "FASCICOLO.CANCEL"
+
   // amministrativo/responsabile/admin
   | "FATTURA.UPLOAD"
   | "BACKOFFICE.REASSIGN"

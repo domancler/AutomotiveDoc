@@ -69,6 +69,24 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   const role = user.role;
   const state = st(fascicolo);
 
+  // Annullamento: azione “cross-cutting”
+  // - disponibile in tutti gli stati tranne Bozza
+  // - solo owner del fascicolo “in mano” (nel momento corrente) oppure supervisore (RESPONSABILE)
+  if (action === "FASCICOLO.CANCEL") {
+    if (!fascicolo) return false;
+    if (!state || state === States.BOZZA || state === States.ANNULLATO) return false;
+    // supervisore: sempre (a prescindere da chi lo ha in carico)
+    if (role === "RESPONSABILE") return true;
+    // altri ruoli: solo se lo hanno in carico / owner
+    if (fascicolo.ownerId === user.id) return true;
+    if (fascicolo.inChargeBO === user.id) return true;
+    if (fascicolo.inChargeBOF === user.id) return true;
+    if (fascicolo.inChargeBOU === user.id) return true;
+    if (fascicolo.inChargeDelivery === user.id) return true;
+    if (fascicolo.inChargeVRC === user.id) return true;
+    return false;
+  }
+
   // ADMIN: solo config, zero fascicoli
   if (role === "ADMIN") {
     return action === "ADMIN.DOC_RULES_MANAGE";

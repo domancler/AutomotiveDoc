@@ -10,13 +10,14 @@ function nowIso() {
 function normalizeStatoFromOverall(overall?: StateCode): Fascicolo["stato"] {
   if (!overall) return "Bozza";
   if (overall === States.BOZZA) return "Bozza";
+  if (overall === States.ANNULLATO) return "Annullato";
   if (overall === States.NUOVO) return "In compilazione";
   if (overall === States.CONSEGNATO) return "Firmato";
   if (overall === States.APPROVATO) return "Firmato";
   return "In approvazione";
 }
 
-function requiredBranches(f: Fascicolo) {
+function requiredBranches(_f: Fascicolo) {
   return {
     // Nel dominio attuale i tre rami Back Office sono sempre presenti e indipendenti.
     // (Anagrafico / Finanziario / Permuta)
@@ -44,16 +45,21 @@ function pushTimeline(f: Fascicolo, actor: string, event: string) {
 export function applyWorkflowAction(
   f: Fascicolo,
   action: Action,
-  actor: { id?: string; role?: Role; name?: string }
+  actor: { id?: string; role?: Role; name?: string },
+  payload?: { note?: string }
 ): Fascicolo {
   const actorName = actor.name || actor.role || "Utente";
   const actorId = actor.id ?? null;
+
   const wf = f.workflow ?? {
     overall: States.BOZZA,
     bo: States.BOZZA,
     bof: States.BOZZA,
     bou: States.BOZZA,
   };
+
+  // Se è già annullato: tutto no-op (irreversibile)
+  if (wf.overall === States.ANNULLATO) return f;
 
   let next: Fascicolo = {
     ...f,
@@ -62,6 +68,7 @@ export function applyWorkflowAction(
   };
 
   const req = requiredBranches(next);
+
   const setOverall = (s: StateCode) => {
     next = {
       ...next,
@@ -90,6 +97,44 @@ export function applyWorkflowAction(
   };
 
   switch (action) {
+    case "FASCICOLO.CANCEL": {
+      // Finale alternativo: Annullato (irreversibile)
+      // - sempre possibile tranne in Bozza (la regola dei permessi lo impedisce)
+      // - richiede nota (la UI la forza)
+      const noteText = (payload?.note ?? "").trim();
+      setOverall(States.ANNULLATO);
+      setBranch("bo", States.ANNULLATO);
+      setBranch("bof", States.ANNULLATO);
+      setBranch("bou", States.ANNULLATO);
+
+      next = {
+        ...next,
+        // nessuno lo ha più in carico
+        inChargeBO: null,
+        inChargeBOF: null,
+        inChargeBOU: null,
+        inChargeDelivery: null,
+        inChargeVRC: null,
+        deliverySentToVRC: false,
+        reopenProposed: false,
+        reopenCycle: false,
+        progress: 100,
+        stato: "Annullato",
+        timeline: pushTimeline(next, actorName, "Fascicolo annullato"),
+        note: [
+          ...(Array.isArray(next.note) ? next.note : []),
+          {
+            id: `NOTE-${Math.random().toString(16).slice(2, 8)}`,
+            at: nowIso(),
+            author: actorName,
+            text: noteText || "Annullamento del fascicolo.",
+            kind: "cancel",
+          },
+        ],
+      };
+      return next;
+    }
+
     case "FASCICOLO.TAKE_COMM": {
       // Bozza -> Nuovo: presa in carico iniziale del venditore
       setOverall(States.NUOVO);
@@ -126,7 +171,6 @@ export function applyWorkflowAction(
     case "FASCICOLO.REQUEST_REOPEN": {
       // Proposta di riapertura (solo in APPROVATO).
       // Non cambia lo stato: segnala soltanto la richiesta.
-      // La riapertura effettiva avverrà quando uno dei BO premerà "Riapri".
       if ((next.workflow?.overall as any) !== States.APPROVATO) return next;
 
       next = {
@@ -148,51 +192,51 @@ export function applyWorkflowAction(
     }
 
     case "FASCICOLO.REOPEN": {
-      // Riapertura effettiva (BO/BOF/BOU). Se un BO riapre, il fascicolo viene riaperto per tutti i rami.
-      // Regola README:
-      // - BO che accetta -> In validazione / In verifica
-      // - Altri BO -> restano Validati
+      // Riapertura (da uno qualsiasi dei BO) in fase APPROVATO.
+      // Effetto (README):
+      // - il fascicolo rientra in validazione
+      // - il BO che accetta va "In verifica"
+      // - gli altri BO restano "Validato"
       if ((next.workflow?.overall as any) !== States.APPROVATO) return next;
 
       const role = actor.role;
       const acceptingBranch: "bo" | "bof" | "bou" | null =
         role === "BO" ? "bo" : role === "BOF" ? "bof" : role === "BOU" ? "bou" : null;
+
       if (!acceptingBranch) return next;
 
-      // Torna nella fase di validazione
+      // torna in validazione (overall)
       setOverall(States.DA_VALIDARE_BO);
 
-      // Imposta gli stati dei rami
-      if (req.bo) setBranch("bo", acceptingBranch === "bo" ? States.VERIFICHE_BO : States.VALIDATO_BO);
-      if (req.bof) setBranch("bof", acceptingBranch === "bof" ? States.VERIFICHE_BOF : States.VALIDATO_BOF);
-      if (req.bou) setBranch("bou", acceptingBranch === "bou" ? States.VERIFICHE_BOU : States.VALIDATO_BOU);
+      // rami: uno torna in verifica, gli altri rimangono validati
+      setBranch("bo", acceptingBranch === "bo" ? States.VERIFICHE_BO : States.VALIDATO_BO);
+      setBranch("bof", acceptingBranch === "bof" ? States.VERIFICHE_BOF : States.VALIDATO_BOF);
+      setBranch("bou", acceptingBranch === "bou" ? States.VERIFICHE_BOU : States.VALIDATO_BOU);
 
-      // Presa in carico del ramo che accetta
       next = {
         ...next,
         reopenProposed: false,
         reopenCycle: true,
-        // inCharge: solo il ramo che accetta è operativamente "in mano".
+        // assegna la presa in carico solo al ramo che ha accettato
         inChargeBO: acceptingBranch === "bo" ? actorId : null,
         inChargeBOF: acceptingBranch === "bof" ? actorId : null,
         inChargeBOU: acceptingBranch === "bou" ? actorId : null,
-        // memoria ultimo incaricato (utile per eventuali ritorni futuri)
-        lastInChargeBO: acceptingBranch === "bo" ? actorId : next.lastInChargeBO ?? null,
-        lastInChargeBOF: acceptingBranch === "bof" ? actorId : next.lastInChargeBOF ?? null,
-        lastInChargeBOU: acceptingBranch === "bou" ? actorId : next.lastInChargeBOU ?? null,
-        // progress: torna indietro ma rimane "avanzato"
-        progress: Math.min(Math.max(next.progress ?? 0, 55), 75),
-        timeline: pushTimeline(next, actorName, "Riapertura accettata (ritorno in validazione)"),
+        lastInChargeBO: acceptingBranch === "bo" ? actorId : next.lastInChargeBO ?? next.inChargeBO ?? null,
+        lastInChargeBOF: acceptingBranch === "bof" ? actorId : next.lastInChargeBOF ?? next.inChargeBOF ?? null,
+        lastInChargeBOU: acceptingBranch === "bou" ? actorId : next.lastInChargeBOU ?? next.inChargeBOU ?? null,
+        // riapertura = torna indietro: abbassa il progress (senza farlo crollare a 0)
+        progress: Math.min(next.progress ?? 85, 70),
         note: [
           ...(Array.isArray(next.note) ? next.note : []),
           {
-            id: `NOTE-${Math.random().toString(16).slice(2, 8)}`,
+            id: `N-${Math.random().toString(16).slice(2, 8)}`,
             at: nowIso(),
             author: actorName,
-            text: "Riapertura accettata: riavviata la validazione.",
+            text: `Riaperto da ${actorName}`,
             kind: "reopen",
           },
         ],
+        timeline: pushTimeline(next, actorName, "Riapertura fascicolo"),
       };
 
       return next;
@@ -210,7 +254,6 @@ export function applyWorkflowAction(
     }
     case "FASCICOLO.REQUEST_REVIEW_BO": {
       setBranch("bo", States.DA_RIVEDERE_BO);
-      // rimane in fase BO: venditore vedrà “Da controllare”
       next = {
         ...next,
         inChargeBO: null,
@@ -292,107 +335,6 @@ export function applyWorkflowAction(
       return next;
     }
 
-    case "FASCICOLO.REOPEN": {
-      // Riapertura: può essere fatta da BO/BOF/BOU anche senza proposta.
-      // Comportamento (README):
-      // - un qualsiasi BO che accetta riapre il ciclo per tutti e tre
-      // - ramo del BO che accetta -> In verifica
-      // - altri rami -> restano Validato
-      if ((next.workflow?.overall as any) !== States.APPROVATO) return next;
-
-      // torna alla fase di validazione
-      setOverall(States.DA_VALIDARE_BO);
-
-      const role = actor.role;
-      const acceptBranch: "bo" | "bof" | "bou" | null =
-        role === "BO" ? "bo" : role === "BOF" ? "bof" : role === "BOU" ? "bou" : null;
-
-      // se per qualche motivo manca il ruolo, non cambiamo nulla (sicurezza)
-      if (!acceptBranch) return next;
-
-      // rami non accettanti: restano validati
-      if (req.bo) setBranch("bo", States.VALIDATO_BO);
-      if (req.bof) setBranch("bof", States.VALIDATO_BOF);
-      if (req.bou) setBranch("bou", States.VALIDATO_BOU);
-
-      // ramo accettante: torna in verifica
-      if (acceptBranch === "bo") setBranch("bo", States.VERIFICHE_BO);
-      if (acceptBranch === "bof") setBranch("bof", States.VERIFICHE_BOF);
-      if (acceptBranch === "bou") setBranch("bou", States.VERIFICHE_BOU);
-
-      next = {
-        ...next,
-        reopenProposed: false,
-        reopenCycle: true,
-
-        // assegna la presa in carico al BO che ha accettato
-        inChargeBO: acceptBranch === "bo" ? actorId : null,
-        inChargeBOF: acceptBranch === "bof" ? actorId : null,
-        inChargeBOU: acceptBranch === "bou" ? actorId : null,
-        lastInChargeBO: acceptBranch === "bo" ? actorId : next.lastInChargeBO ?? next.lastInChargeBO,
-        lastInChargeBOF: acceptBranch === "bof" ? actorId : next.lastInChargeBOF ?? next.lastInChargeBOF,
-        lastInChargeBOU: acceptBranch === "bou" ? actorId : next.lastInChargeBOU ?? next.lastInChargeBOU,
-
-        progress: Math.min(next.progress ?? 85, 65),
-        timeline: pushTimeline(next, actorName, "Riapertura accettata"),
-      };
-
-      return next;
-    }
-
-    case "FASCICOLO.REOPEN": {
-      // Riapertura (da uno qualsiasi dei BO) in fase APPROVATO.
-      // Effetto (README):
-      // - il fascicolo rientra in validazione
-      // - il BO che accetta va "In verifica"
-      // - gli altri BO restano "Validato"
-
-      const role = actor.role;
-      const acceptingBranch: "bo" | "bof" | "bou" | null =
-        role === "BO" ? "bo" : role === "BOF" ? "bof" : role === "BOU" ? "bou" : null;
-
-      if (!acceptingBranch) {
-        // azione non applicabile (fallback no-op)
-        return next;
-      }
-
-      // torna in validazione (overall)
-      setOverall(States.DA_VALIDARE_BO);
-
-      // rami: uno torna in verifica, gli altri rimangono validati
-      setBranch("bo", acceptingBranch === "bo" ? States.VERIFICHE_BO : States.VALIDATO_BO);
-      setBranch("bof", acceptingBranch === "bof" ? States.VERIFICHE_BOF : States.VALIDATO_BOF);
-      setBranch("bou", acceptingBranch === "bou" ? States.VERIFICHE_BOU : States.VALIDATO_BOU);
-
-      next = {
-        ...next,
-        reopenProposed: false,
-        reopenCycle: true,
-        // assegna la presa in carico solo al ramo che ha accettato
-        inChargeBO: acceptingBranch === "bo" ? actorId : null,
-        inChargeBOF: acceptingBranch === "bof" ? actorId : null,
-        inChargeBOU: acceptingBranch === "bou" ? actorId : null,
-        lastInChargeBO: acceptingBranch === "bo" ? actorId : next.lastInChargeBO ?? next.inChargeBO ?? null,
-        lastInChargeBOF: acceptingBranch === "bof" ? actorId : next.lastInChargeBOF ?? next.inChargeBOF ?? null,
-        lastInChargeBOU: acceptingBranch === "bou" ? actorId : next.lastInChargeBOU ?? next.inChargeBOU ?? null,
-        // riapertura = torna indietro: abbassa il progress (senza farlo crollare a 0)
-        progress: Math.min(next.progress ?? 85, 70),
-        note: [
-          ...(Array.isArray(next.note) ? next.note : []),
-          {
-            id: `N-${Math.random().toString(16).slice(2, 8)}`,
-            at: nowIso(),
-            author: actorName,
-            text: `Riaperto da ${actorName}`,
-            kind: "reopen",
-          },
-        ],
-        timeline: pushTimeline(next, actorName, "Riapertura fascicolo"),
-      };
-
-      return next;
-    }
-
     // --- Consegna ---
     case "DELIVERY.TAKE": {
       // da APPROVATO -> preso in carico dall'operatore consegna
@@ -407,12 +349,14 @@ export function applyWorkflowAction(
       };
       return next;
     }
+
     case "DELIVERY.SEND_TO_VRC": {
       // operatore consegna -> invio a controllo consegna
       // Caso 1: primo invio => diventa disponibile al VRC (che lo prende in carico)
       // Caso 2: ritorno da integrazioni (DA_RIVEDERE_VRC) => torna direttamente allo stesso VRC in "In verifica"
 
-      const returningToSameVrc = (next.workflow?.overall as any) === States.DA_RIVEDERE_VRC && !!next.lastInChargeVRC;
+      const returningToSameVrc =
+        (next.workflow?.overall as any) === States.DA_RIVEDERE_VRC && !!next.lastInChargeVRC;
 
       if (returningToSameVrc) {
         setOverall(States.VERIFICHE_CONSEGNA);
@@ -447,6 +391,7 @@ export function applyWorkflowAction(
       };
       return next;
     }
+
     case "VRC.REQUEST_FIX": {
       setOverall(States.DA_RIVEDERE_VRC);
       next = {
@@ -459,6 +404,7 @@ export function applyWorkflowAction(
       };
       return next;
     }
+
     case "VRC.VALIDATE": {
       setOverall(States.CONSEGNATO);
       next = {

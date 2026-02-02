@@ -6,7 +6,8 @@ export type StateCode =
   | "S08" | "S09" | "S10" | "S18"
   | "S11"
   | "S12" | "S13" | "S14" | "S15"
-  | "S19";
+  | "S19"
+  | "S20";
 
 export const States = {
   // Pre-ingresso (venditore non ha ancora preso in carico)
@@ -44,6 +45,9 @@ export const States = {
   VERIFICHE_CONSEGNA: "S13" as StateCode,
   DA_RIVEDERE_VRC: "S14" as StateCode,
   CONSEGNATO: "S15" as StateCode,
+
+  // Finale alternativo
+  ANNULLATO: "S20" as StateCode,
 } as const;
 
 export type ValidationArea = "BO" | "BOF" | "BOU";

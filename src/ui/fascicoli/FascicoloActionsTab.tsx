@@ -16,10 +16,12 @@ import {
   CheckCircle2,
   UserCheck,
   ArrowRightCircle,
+  Ban,
 } from "lucide-react";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { dispatchFascicoloAction } from "@/mock/runtimeFascicoliStore";
+import { NoteConfirmDialog } from "@/ui/components/note-confirm-dialog";
 
 /** -----------------------
  *  Stato: mapping temporaneo
@@ -196,6 +198,8 @@ function niceStateLabel(state?: string) {
       return "Consegna - da controllare";
     case States.CONSEGNATO:
       return "Completato";
+    case States.ANNULLATO:
+      return "Annullato";
     default:
       return state ?? "—";
   }
@@ -257,6 +261,10 @@ function reasonByState(action: Action, state?: string) {
     case "VRC.REQUEST_FIX":
     case "VRC.VALIDATE":
       return inState([States.VERIFICHE_CONSEGNA]);
+
+    case "FASCICOLO.CANCEL":
+      // Sempre disponibile tranne in Bozza
+      return state === States.BOZZA ? "Non disponibile in: Bozza" : "";
 
     default:
       return "Non disponibile in questo stato";
@@ -391,11 +399,14 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
     return reasonByState(action, action === "FASCICOLO.REOPEN" ? ctx.overallState : state);
   };
 
-  const doAction = (action: Action, label: string) => {
+  const [cancelOpen, setCancelOpen] = React.useState(false);
+
+  const doAction = (action: Action, label: string, payload?: { note?: string }) => {
     dispatchFascicoloAction({
       fascicoloId: fascicolo.id,
       action,
       actor: { id: user?.id, role, name: user?.name || user?.username || user?.id },
+      payload,
     });
 
     // feedback leggero (rimane tutto runtime)
@@ -416,6 +427,20 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
   return (
     <div className="rounded-2xl border bg-card p-4">
+      <NoteConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title="Annullare il fascicolo?"
+        description="Questa azione è **irreversibile**. Il fascicolo verrà marcato come annullato e non potrà più proseguire nel flusso."
+        confirmText="Annulla fascicolo"
+        cancelText="Torna indietro"
+        notePlaceholder="Scrivi la motivazione dell'annullamento..."
+        tone="danger"
+        onConfirm={(note) => {
+          doAction("FASCICOLO.CANCEL", "Annulla fascicolo", { note });
+          setCancelOpen(false);
+        }}
+      />
       <div className="space-y-4">
       {/* ✅ COMMERCIALE: vede SOLO queste */}
       {role === "COMMERCIALE" && (
@@ -652,6 +677,29 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               })()}
             />
           </div>
+      )}
+
+      {/* Finale alternativo: Annullamento */}
+      {allowed("FASCICOLO.CANCEL") && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+          <div className="mb-3">
+            <div className="text-sm font-semibold">Annullamento</div>
+            <div className="text-xs text-muted-foreground">
+              Chiude il fascicolo in modo definitivo (serve una motivazione).
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <ActionCard
+              title="Annulla fascicolo"
+              subtitle="Azione irreversibile: richiede nota obbligatoria."
+              icon={<Ban className="h-5 w-5" />}
+              tone="danger"
+              enabled={allowed("FASCICOLO.CANCEL")}
+              onClick={() => setCancelOpen(true)}
+              disabledReason={disabledReason("FASCICOLO.CANCEL")}
+            />
+          </div>
+        </div>
       )}
 
       {/* Ruoli “solo lettura” o admin */}
