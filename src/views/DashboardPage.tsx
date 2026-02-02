@@ -64,20 +64,32 @@ function macroLabel(code?: StateCode): string {
   if (!code) return "—";
   if (code === States.BOZZA) return "Bozza";
   if (code === States.NUOVO) return "Nuovo";
-  if (code === States.DA_VALIDARE_BO || code === States.DA_VALIDARE_BOF || code === States.DA_VALIDARE_BOU)
-    return "In attesa di presa in carico";
-  if (code === States.VERIFICHE_BO || code === States.VERIFICHE_BOF || code === States.VERIFICHE_BOU)
-    return "In verifica";
-  if (code === States.DA_RIVEDERE_BO || code === States.DA_RIVEDERE_BOF || code === States.DA_RIVEDERE_BOU)
-    return "Da controllare";
-  if (code === States.VALIDATO_BO || code === States.VALIDATO_BOF || code === States.VALIDATO_BOU)
-    // "Validato" non è una fase macro: è un micro-stato dei rami di validazione.
-    return "In validazione – Validato";
+  // Nel grafico "Distribuzione per macro-stato" vogliamo una vista davvero sintetica:
+  // tutti i micro-stati di validazione (BO/BOF/BOU) confluiscono in "In validazione".
+  if (
+    code === States.DA_VALIDARE_BO ||
+    code === States.DA_VALIDARE_BOF ||
+    code === States.DA_VALIDARE_BOU ||
+    code === States.VERIFICHE_BO ||
+    code === States.VERIFICHE_BOF ||
+    code === States.VERIFICHE_BOU ||
+    code === States.DA_RIVEDERE_BO ||
+    code === States.DA_RIVEDERE_BOF ||
+    code === States.DA_RIVEDERE_BOU ||
+    code === States.VALIDATO_BO ||
+    code === States.VALIDATO_BOF ||
+    code === States.VALIDATO_BOU
+  )
+    return "In validazione";
   if (code === States.APPROVATO) return "Approvato";
-  if (code === States.IN_FINALIZZAZIONE || code === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO)
-    return "Consegna – in attesa di presa in carico";
-  if (code === States.CONSEGNA_IN_VERIFICA) return "Consegna – in verifica";
-  if (code === States.CONSEGNA_DA_CONTROLLARE) return "Consegna – da controllare";
+  // Stesso discorso per consegna: micro-stati confluiscono nel macro "Consegna".
+  if (
+    code === States.IN_FINALIZZAZIONE ||
+    code === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO ||
+    code === States.CONSEGNA_IN_VERIFICA ||
+    code === States.CONSEGNA_DA_CONTROLLARE
+  )
+    return "Consegna";
   if (code === States.COMPLETATO) return "Completato";
   return "Altro";
 }
@@ -119,15 +131,16 @@ function boMicroLabel(code?: StateCode): string {
 
 /** Micro-stati Consegna / controllo consegna */
 function consegnaMicroLabel(code?: StateCode): string {
+  // Il grafico "Dettaglio consegna" è già contestualizzato alla consegna:
+  // qui mostriamo quindi SOLO la parte specifica, senza prefisso "Consegna –".
   switch (code) {
     case States.IN_FINALIZZAZIONE:
-      return "Consegna – in attesa di presa in carico";
     case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
-      return "Consegna – in attesa di presa in carico";
+      return "In attesa di presa in carico";
     case States.CONSEGNA_IN_VERIFICA:
-      return "Consegna – in verifica";
+      return "In verifica";
     case States.CONSEGNA_DA_CONTROLLARE:
-      return "Consegna – da controllare";
+      return "Da controllare";
     default:
       return "—";
   }
@@ -225,13 +238,9 @@ export function DashboardPage() {
     return toChartData(map, [
       "Bozza",
       "Nuovo",
-      "In attesa di presa in carico",
-      "In verifica",
-      "Da controllare",
+      "In validazione",
       "Approvato",
-      "Consegna – in attesa di presa in carico",
-      "Consegna – in verifica",
-      "Consegna – da controllare",
+      "Consegna",
       "Completato",
       "Altro",
       "—",
@@ -271,9 +280,9 @@ export function DashboardPage() {
     }
 
     return toChartData(map, [
-      "Consegna – in attesa di presa in carico",
-      "Consegna – in verifica",
-      "Consegna – da controllare",
+      "In attesa di presa in carico",
+      "In verifica",
+      "Da controllare",
       "—",
     ]);
   }, [fascicoli]);
