@@ -4,20 +4,22 @@ export type StoredUser = {
   id: string;
   username: string;
   name?: string;
+  email?: string;
   role: Role;
 };
 
 const LS_KEY = "automotivedoc_user";
 
 export const DEMO_USERS: StoredUser[] = [
-  { id: "admin", username: "admin", name: "Admin", role: "ADMIN" },
-  { id: "sup", username: "supervisore", name: "Supervisore", role: "RESPONSABILE" },
-  { id: "ven", username: "venditore", name: "Venditore", role: "COMMERCIALE" },
-  { id: "bo", username: "bo", name: "BackOffice Anagrafico", role: "BO" },
-  { id: "bof", username: "bof", name: "BackOffice Finanziario", role: "BOF" },
-  { id: "bou", username: "bou", name: "BackOffice Permuta", role: "BOU" },
-  { id: "del", username: "consegna", name: "Operatore consegna", role: "CONSEGNATORE" },
-  { id: "vrc", username: "controllo", name: "Controllo consegna", role: "VRC" },
+  // Nominativi realistici (inventati) per screenshot e manuale utente
+  { id: "admin", username: "admin", name: "Paolo Riva", email: "p.riva@automotivedoc.it", role: "ADMIN" },
+  { id: "sup", username: "supervisore", name: "Stefano Marchetti", email: "s.marchetti@automotivedoc.it", role: "RESPONSABILE" },
+  { id: "ven", username: "venditore", name: "Luca Rinaldi", email: "l.rinaldi@automotivedoc.it", role: "COMMERCIALE" },
+  { id: "bo", username: "bo", name: "Sara Conti", email: "s.conti@automotivedoc.it", role: "BO" },
+  { id: "bof", username: "bof", name: "Andrea Moretti", email: "a.moretti@automotivedoc.it", role: "BOF" },
+  { id: "bou", username: "bou", name: "Elena Gallo", email: "e.gallo@automotivedoc.it", role: "BOU" },
+  { id: "del", username: "consegna", name: "Michele Russo", email: "m.russo@automotivedoc.it", role: "CONSEGNATORE" },
+  { id: "vrc", username: "controllo", name: "Valentina De Luca", email: "v.deluca@automotivedoc.it", role: "VRC" },
 ];
 
 function roleFromUsername(username: string): Role {
@@ -67,6 +69,7 @@ export async function login(username: unknown, password: unknown): Promise<Store
         id: clean.toLowerCase(),
         username: clean,
         name: clean,
+        email: undefined,
         role: roleFromUsername(clean),
       };
 

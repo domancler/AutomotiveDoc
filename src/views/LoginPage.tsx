@@ -3,7 +3,30 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { DEMO_USERS } from "@/auth/auth";
 import { Button } from "@/ui/components/button";
-import fav from "../../public/favicon-32x32.png";
+
+function roleLabel(role?: string) {
+  switch (role) {
+    case "ADMIN":
+    case "AMMINISTRATIVO":
+      return "Admin";
+    case "RESPONSABILE":
+      return "Supervisore";
+    case "COMMERCIALE":
+      return "Venditore";
+    case "BO":
+      return "BackOffice Anagrafico";
+    case "BOF":
+      return "BackOffice Finanziario";
+    case "BOU":
+      return "BackOffice Permuta";
+    case "CONSEGNATORE":
+      return "Operatore Consegna";
+    case "VRC":
+      return "Controllo Consegna";
+    default:
+      return role ?? "Utente";
+  }
+}
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -41,7 +64,7 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="w-full space-y-4 rounded-xl border bg-card p-6">
         <div className="flex items-center gap-3">
           <img
-            src={fav}
+            src="/favicon-32x32.png"
             alt="AutomotiveDoc"
             className="h-8 w-8"
             loading="eager"
@@ -59,11 +82,13 @@ export default function LoginPage() {
           <div className="grid grid-cols-2 gap-2">
             {DEMO_USERS.map((u) => {
               const isActive = selected?.id === u.id;
+              const btnVariant = (isActive ? "default" : "outline") as "default" | "outline";
+
               return (
                 <Button
                   key={u.id}
                   type="button"
-                  variant={isActive ? "default" : "outline"}
+                  variant={btnVariant}
                   onClick={() => setSelected(u)}
                   className="justify-start"
                 >
@@ -76,6 +101,8 @@ export default function LoginPage() {
           {selected && (
             <div className="rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground">
               Selezionato: <span className="font-medium text-foreground">{selected.name ?? selected.username}</span>
+              <span className="mx-1">·</span>
+              ruolo: <span className="font-medium text-foreground">{roleLabel((selected as any)?.role)}</span>
               <span className="mx-1">·</span>
               username: <span className="font-mono">{selected.username}</span>
             </div>
