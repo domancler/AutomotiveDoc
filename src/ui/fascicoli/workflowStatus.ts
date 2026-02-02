@@ -40,13 +40,14 @@ function niceStateLabel(state?: StateCode) {
       return "Approvato";
 
     case States.PRONTO_PER_LA_CONSEGNA:
-      return "Pronto per la consegna";
+      // Nel README questa fase è già rappresentata come "Consegna – in attesa di presa in carico".
+      return "Consegna – in attesa di presa in carico";
     case States.DA_VALIDARE_CONSEGNA:
-      return "Consegna - in attesa di presa in carico";
+      return "Consegna – in attesa di presa in carico";
     case States.VERIFICHE_CONSEGNA:
-      return "Consegna - in verifica";
+      return "Consegna – in verifica";
     case States.DA_RIVEDERE_VRC:
-      return "Consegna - da controllare";
+      return "Consegna – da controllare";
     case States.CONSEGNATO:
       return "Completato";
 
@@ -138,11 +139,24 @@ function firstReviewBranchState(f: Fascicolo): StateCode | undefined {
   );
 }
 
+function anyBranchInVerifica(f: Fascicolo): boolean {
+  const bo = f.workflow?.bo;
+  const bof = f.workflow?.bof;
+  const bou = f.workflow?.bou;
+  const candidates = [bo, bof, bou].filter(Boolean) as StateCode[];
+  return candidates.some(
+    (s) =>
+      s === States.VERIFICHE_BO ||
+      s === States.VERIFICHE_BOF ||
+      s === States.VERIFICHE_BOU
+  );
+}
+
 /**
  * Stato “visibile” in lista/header, in base al ruolo.
  * - BO/BOF/BOU: vede lo stato del proprio ramo.
- * - Venditore: vede "Da controllare" solo se un ramo ha rimandato al venditore, altrimenti vede uno stato macro "In validazione (BackOffice)".
- * - Altri ruoli: stato macro (dettaglio mostra i rami).
+ * - Venditore: vede "Da controllare" solo se un ramo ha rimandato indietro, altrimenti vede lo stato macro della fase BO.
+ * - Altri ruoli: stato macro della fase BO (il dettaglio mostra i rami).
  */
 export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
   const overall = getOverallState(f);
@@ -169,9 +183,18 @@ export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
   }
 
   // fase BO: rami indipendenti
+  // Nel README non esiste lo stato "In validazione (BackOffice)":
+  // in lista usiamo SOLO i 3 stati canonici della fase BO.
+  const review = firstReviewBranchState(f);
+  const macroLabel = review
+    ? "Da controllare"
+    : anyBranchInVerifica(f)
+      ? "In verifica"
+      : "In attesa di presa in carico";
+  const macroVariant: VisibleStatus["variant"] = review ? "danger" : "warning";
   const macro: VisibleStatus = overall
-    ? { label: "In validazione (BackOffice)", variant: "warning", code: overall }
-    : { label: "In validazione (BackOffice)", variant: "warning" };
+    ? { label: macroLabel, variant: macroVariant, code: overall }
+    : { label: macroLabel, variant: macroVariant };
 
   if (role === "BO") {
     const s = getBranchState(f, "BO");
@@ -187,10 +210,7 @@ export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
   }
 
   if (role === "COMMERCIALE") {
-    const review = firstReviewBranchState(f);
-    if (review) {
-      return toVisibleStatus(review);
-    }
+    if (review) return toVisibleStatus(review);
     return macro;
   }
 

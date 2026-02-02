@@ -17,8 +17,9 @@ function roleLabel(role?: string) {
   switch (role) {
     case "ADMIN":
       return "Admin";
+    // Nel README esiste solo il profilo "Admin"; "AMMINISTRATIVO" è un alias tecnico.
     case "AMMINISTRATIVO":
-      return "Amministrativo";
+      return "Admin";
     case "RESPONSABILE":
       return "Supervisore";
     case "COMMERCIALE":
@@ -30,9 +31,9 @@ function roleLabel(role?: string) {
     case "BOU":
       return "BackOffice Permuta";
     case "CONSEGNATORE":
-      return "Operatore consegna";
+      return "Operatore Consegna";
     case "VRC":
-      return "Controllo consegna";
+      return "Controllo Consegna";
     default:
       return role ?? "Utente";
   }
@@ -58,8 +59,7 @@ export function UserMenu() {
   const displayName =
     user?.name || user?.username || user?.email || user?.id || "Utente";
   const roleCode = user?.role || user?.ruolo || "utente";
-  const role = roleLabel(roleCode);
-  const roleText = roleLabel(role);
+  const roleText = roleLabel(roleCode);
 
   return (
     <div ref={wrapRef} className="relative">

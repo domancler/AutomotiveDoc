@@ -64,10 +64,19 @@ function macroLabel(code?: StateCode): string {
   if (!code) return "—";
   if (code === States.BOZZA) return "Bozza";
   if (code === States.NUOVO) return "Nuovo";
-  if (isBackOfficeState(code)) return "Validazione BackOffice";
+  if (code === States.DA_VALIDARE_BO || code === States.DA_VALIDARE_BOF || code === States.DA_VALIDARE_BOU)
+    return "In attesa di presa in carico";
+  if (code === States.VERIFICHE_BO || code === States.VERIFICHE_BOF || code === States.VERIFICHE_BOU)
+    return "In verifica";
+  if (code === States.DA_RIVEDERE_BO || code === States.DA_RIVEDERE_BOF || code === States.DA_RIVEDERE_BOU)
+    return "Da controllare";
+  if (code === States.VALIDATO_BO || code === States.VALIDATO_BOF || code === States.VALIDATO_BOU)
+    return "Validato";
   if (code === States.APPROVATO) return "Approvato";
-  if (code === States.PRONTO_PER_LA_CONSEGNA) return "Pronto per la consegna";
-  if (isVrcConsegnaState(code)) return "Consegna";
+  if (code === States.PRONTO_PER_LA_CONSEGNA || code === States.DA_VALIDARE_CONSEGNA)
+    return "Consegna – in attesa di presa in carico";
+  if (code === States.VERIFICHE_CONSEGNA) return "Consegna – in verifica";
+  if (code === States.DA_RIVEDERE_VRC) return "Consegna – da controllare";
   if (code === States.CONSEGNATO) return "Completato";
   return "Altro";
 }
@@ -111,13 +120,13 @@ function boMicroLabel(code?: StateCode): string {
 function consegnaMicroLabel(code?: StateCode): string {
   switch (code) {
     case States.PRONTO_PER_LA_CONSEGNA:
-      return "Pronto per la consegna";
+      return "Consegna – in attesa di presa in carico";
     case States.DA_VALIDARE_CONSEGNA:
-      return "Consegna - in attesa di presa in carico";
+      return "Consegna – in attesa di presa in carico";
     case States.VERIFICHE_CONSEGNA:
-      return "Consegna - in verifica";
+      return "Consegna – in verifica";
     case States.DA_RIVEDERE_VRC:
-      return "Consegna - da controllare";
+      return "Consegna – da controllare";
     default:
       return "—";
   }
@@ -215,10 +224,14 @@ export function DashboardPage() {
     return toChartData(map, [
       "Bozza",
       "Nuovo",
-      "Validazione BackOffice",
+      "In attesa di presa in carico",
+      "In verifica",
+      "Da controllare",
+      "Validato",
       "Approvato",
-      "Pronto per la consegna",
-      "Consegna",
+      "Consegna – in attesa di presa in carico",
+      "Consegna – in verifica",
+      "Consegna – da controllare",
       "Completato",
       "Altro",
       "—",
@@ -229,8 +242,8 @@ export function DashboardPage() {
     const map = new Map<string, number>();
 
     for (const f of fascicoli) {
-      // Conteggiamo solo fascicoli che sono nella macro-area "Validazione BackOffice"
-      if (macroLabel(f.workflow?.overall) !== "Validazione BackOffice") continue;
+      // Conteggiamo solo fascicoli che sono nella fase BackOffice
+      if (!isBackOfficeState(f.workflow?.overall)) continue;
 
       for (const branch of enabledBoBranches(f)) {
         const s = getBranchState(f, branch);
@@ -258,10 +271,9 @@ export function DashboardPage() {
     }
 
     return toChartData(map, [
-      "Pronto per la consegna",
-      "Consegna - in attesa di presa in carico",
-      "Consegna - in verifica",
-      "Consegna - da controllare",
+      "Consegna – in attesa di presa in carico",
+      "Consegna – in verifica",
+      "Consegna – da controllare",
       "—",
     ]);
   }, [fascicoli]);

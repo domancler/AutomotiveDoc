@@ -7,14 +7,37 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function normalizeStatoFromOverall(overall?: StateCode): Fascicolo["stato"] {
+function normalizeStato(next: Fascicolo, overall?: StateCode): Fascicolo["stato"] {
   if (!overall) return "Bozza";
   if (overall === States.BOZZA) return "Bozza";
   if (overall === States.ANNULLATO) return "Annullato";
-  if (overall === States.NUOVO) return "In compilazione";
-  if (overall === States.CONSEGNATO) return "Firmato";
-  if (overall === States.APPROVATO) return "Firmato";
-  return "In approvazione";
+  if (overall === States.NUOVO) return "Nuovo";
+  if (overall === States.APPROVATO) return "Approvato";
+  if (overall === States.CONSEGNATO) return "Completato";
+
+  // --- Consegna ---
+  if (overall === States.PRONTO_PER_LA_CONSEGNA || overall === States.DA_VALIDARE_CONSEGNA)
+    return "Consegna – in attesa di presa in carico";
+  if (overall === States.VERIFICHE_CONSEGNA) return "Consegna – in verifica";
+  if (overall === States.DA_RIVEDERE_VRC) return "Consegna – da controllare";
+
+  // --- BackOffice (rami paralleli) ---
+  if (overall === States.DA_VALIDARE_BO) {
+    const bo = next.workflow?.bo;
+    const bof = next.workflow?.bof;
+    const bou = next.workflow?.bou;
+    const branches = [bo, bof, bou].filter(Boolean) as StateCode[];
+
+    if (branches.some((s) => s === States.DA_RIVEDERE_BO || s === States.DA_RIVEDERE_BOF || s === States.DA_RIVEDERE_BOU)) {
+      return "Da controllare";
+    }
+    if (branches.some((s) => s === States.VERIFICHE_BO || s === States.VERIFICHE_BOF || s === States.VERIFICHE_BOU)) {
+      return "In verifica";
+    }
+    return "In attesa di presa in carico";
+  }
+
+  return "In attesa di presa in carico";
 }
 
 function requiredBranches(_f: Fascicolo) {
@@ -91,7 +114,7 @@ export function applyWorkflowAction(
     next = {
       ...next,
       workflow: { ...(next.workflow as any), overall: s },
-      stato: normalizeStatoFromOverall(s),
+      stato: normalizeStato(next, s),
     };
   };
 

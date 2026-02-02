@@ -28,12 +28,24 @@ function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
   switch (stato) {
     case "Bozza":
       return States.BOZZA;
-    case "In compilazione":
+    case "Nuovo":
       return States.NUOVO;
-    case "In approvazione":
-      return States.DA_VALIDARE_BO;
-    case "Firmato":
+    case "Approvato":
       return States.APPROVATO;
+    case "Completato":
+      return States.CONSEGNATO;
+    case "Consegna – in attesa di presa in carico":
+      return States.DA_VALIDARE_CONSEGNA;
+    case "Consegna – in verifica":
+      return States.VERIFICHE_CONSEGNA;
+    case "Consegna – da controllare":
+      return States.DA_RIVEDERE_VRC;
+    case "Annullato":
+      return States.ANNULLATO;
+    case "Da controllare":
+    case "In verifica":
+    case "In attesa di presa in carico":
+      return States.DA_VALIDARE_BO;
     default:
       return States.BOZZA;
   }
@@ -93,7 +105,7 @@ function getOverallState(f: Fascicolo): StateCode {
 function roleMatchesAvailability(role: Role, overall: StateCode): boolean {
   // Regole di dominio:
   // - Bozza: solo Venditore
-  // - In validazione: solo BackOffice
+  // - Fase BackOffice: solo BackOffice
   // - Approvato: solo Operatore consegna
   // - Consegna (in attesa di presa in carico): solo Controllo consegna
   if (overall === States.BOZZA) return role === "COMMERCIALE";

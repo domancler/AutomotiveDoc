@@ -2,9 +2,16 @@ import { States, type StateCode } from "@/workflow/states";
 
 export type FascicoloStato =
   | "Bozza"
-  | "In compilazione"
-  | "In approvazione"
-  | "Firmato"
+  | "Nuovo"
+  | "In attesa di presa in carico"
+  | "In verifica"
+  | "Da controllare"
+  | "Validato"
+  | "Approvato"
+  | "Consegna – in attesa di presa in carico"
+  | "Consegna – in verifica"
+  | "Consegna – da controllare"
+  | "Completato"
   | "Annullato";
 
 export type FascicoloWorkflow = {
@@ -106,19 +113,19 @@ function isoDaysAgo(days: number) {
 const T = {
   v1: { id: "u-vend-1", name: "Venditore 1" },
   v2: { id: "u-vend-2", name: "Venditore 2" },
-  bo: { id: "u-bo-1", name: "BO Anagrafico" },
-  bof: { id: "u-bof-1", name: "BO Finanziario" },
-  bou: { id: "u-bou-1", name: "BO Permuta" },
-  del: { id: "u-del-1", name: "Operatore consegna" },
-  vrc: { id: "u-vrc-1", name: "Controllo consegna" },
+  bo: { id: "u-bo-1", name: "BackOffice Anagrafico" },
+  bof: { id: "u-bof-1", name: "BackOffice Finanziario" },
+  bou: { id: "u-bou-1", name: "BackOffice Permuta" },
+  del: { id: "u-del-1", name: "Operatore Consegna" },
+  vrc: { id: "u-vrc-1", name: "Controllo Consegna" },
 } as const;
 
 /**
  * Dataset pensato per testare il giro completo:
  * - Bozza -> Nuovo (presa in carico venditore)
- * - In validazione: attesa presa / in verifica / da controllare / validato
+ * - BackOffice: in attesa di presa in carico / in verifica / da controllare / validato
  * - Approvato
- * - Consegna: pronto per la consegna (operatore) / inviato a VRC / in verifica / da controllare / completato
+ * - Consegna: in attesa di presa in carico / in verifica / da controllare / completato
  */
 export const fascicoli: Fascicolo[] = [
   // --- BOZZE (visibili ai venditori su "Disponibili") ---
@@ -164,7 +171,7 @@ export const fascicoli: Fascicolo[] = [
     numero: "2026/02003",
     cliente: { nome: "Antonio P.", telefono: "+39 320 987 6543" },
     veicolo: { marca: "Fiat", modello: "500 Hybrid", targa: "FI987EF" },
-    stato: "In compilazione",
+    stato: "Nuovo",
     workflow: { overall: States.NUOVO, bo: States.NUOVO, bof: States.NUOVO },
     hasFinanziamento: true,
     ownerId: T.v1.id,
@@ -184,13 +191,13 @@ export const fascicoli: Fascicolo[] = [
     note: [],
   },
 
-  // --- IN VALIDAZIONE: attesa presa (Disponibili BO/BOF/BOU) ---
+  // --- BACKOFFICE: in attesa di presa in carico (Disponibili BO/BOF/BOU) ---
   {
     id: "F-20004",
     numero: "2026/02004",
     cliente: { nome: "Sara M.", email: "sara.m@example.com" },
     veicolo: { marca: "Audi", modello: "A3 Sportback", targa: "AU112AA" },
-    stato: "In approvazione",
+    stato: "In attesa di presa in carico",
     workflow: {
       overall: States.DA_VALIDARE_BO,
       bo: States.DA_VALIDARE_BO,
@@ -212,18 +219,18 @@ export const fascicoli: Fascicolo[] = [
     ],
     timeline: [
       { at: isoDaysAgo(20), actor: "Sistema", event: "Fascicolo creato" },
-      { at: isoDaysAgo(2), actor: T.v2.name, event: "Procedi → In validazione" },
+      { at: isoDaysAgo(2), actor: T.v2.name, event: "Procedi → In attesa di presa in carico" },
     ],
     note: [],
   },
 
-  // --- IN VALIDAZIONE: BO in verifica (In corso BO) ---
+  // --- BACKOFFICE: in verifica (In corso BO) ---
   {
     id: "F-20005",
     numero: "2026/02005",
     cliente: { nome: "Chiara D.", telefono: "+39 345 555 1212" },
     veicolo: { marca: "Toyota", modello: "Yaris Hybrid", targa: "TY778BB" },
-    stato: "In approvazione",
+    stato: "In verifica",
     workflow: {
       overall: States.DA_VALIDARE_BO,
       bo: States.VERIFICHE_BO,
@@ -244,19 +251,19 @@ export const fascicoli: Fascicolo[] = [
     ],
     timeline: [
       { at: isoDaysAgo(18), actor: "Sistema", event: "Fascicolo creato" },
-      { at: isoDaysAgo(2), actor: T.v1.name, event: "Procedi → In validazione" },
-      { at: isoDaysAgo(0), actor: T.bo.name, event: "BO Anagrafico: preso in carico" },
+      { at: isoDaysAgo(2), actor: T.v1.name, event: "Procedi → In attesa di presa in carico" },
+      { at: isoDaysAgo(0), actor: T.bo.name, event: "BackOffice Anagrafico: preso in carico" },
     ],
     note: [],
   },
 
-  // --- IN VALIDAZIONE: da controllare (tornato al venditore - In corso venditore) ---
+  // --- BACKOFFICE: da controllare (tornato al venditore - In corso venditore) ---
   {
     id: "F-20006",
     numero: "2026/02006",
     cliente: { nome: "Paolo G.", email: "paolo.g@example.com" },
     veicolo: { marca: "Mercedes", modello: "Classe A", targa: "ME333CC" },
-    stato: "In approvazione",
+    stato: "Da controllare",
     workflow: {
       overall: States.DA_VALIDARE_BO,
       bo: States.DA_RIVEDERE_BO,
@@ -275,7 +282,7 @@ export const fascicoli: Fascicolo[] = [
     ],
     timeline: [
       { at: isoDaysAgo(9), actor: "Sistema", event: "Fascicolo creato" },
-      { at: isoDaysAgo(1), actor: T.bo.name, event: "BO Anagrafico: richieste integrazioni" },
+      { at: isoDaysAgo(1), actor: T.bo.name, event: "BackOffice Anagrafico: richieste integrazioni" },
     ],
     note: [{ id: "N1", at: isoDaysAgo(1), author: T.bo.name, text: "Manca patente (fronte/retro)." }],
   },
@@ -286,7 +293,7 @@ export const fascicoli: Fascicolo[] = [
     numero: "2026/02007",
     cliente: { nome: "Luca R.", telefono: "+39 333 000 9999" },
     veicolo: { marca: "Peugeot", modello: "208", targa: "PG909DD" },
-    stato: "Firmato",
+    stato: "Approvato",
     workflow: {
       overall: States.APPROVATO,
       bo: States.VALIDATO_BO,
@@ -319,7 +326,7 @@ export const fascicoli: Fascicolo[] = [
     numero: "2026/02008",
     cliente: { nome: "Elena F.", email: "elena.f@example.com" },
     veicolo: { marca: "Renault", modello: "Clio", targa: "RN101EE" },
-    stato: "In approvazione",
+    stato: "Consegna – in attesa di presa in carico",
     workflow: {
       overall: States.PRONTO_PER_LA_CONSEGNA,
       bo: States.VALIDATO_BO,
@@ -348,7 +355,7 @@ export const fascicoli: Fascicolo[] = [
     numero: "2026/02009",
     cliente: { nome: "Valentina T.", email: "valentina.t@example.com" },
     veicolo: { marca: "Ford", modello: "Focus", targa: "FD202FF" },
-    stato: "In approvazione",
+    stato: "Consegna – in attesa di presa in carico",
     workflow: { overall: States.DA_VALIDARE_CONSEGNA, bo: States.VALIDATO_BO },
     ownerId: T.v1.id,
     assegnatario: T.v1.name,
@@ -369,7 +376,7 @@ export const fascicoli: Fascicolo[] = [
     numero: "2026/02010",
     cliente: { nome: "Francesco P.", telefono: "+39 349 111 2222" },
     veicolo: { marca: "Hyundai", modello: "i20", targa: "HY303GG" },
-    stato: "In approvazione",
+    stato: "Consegna – in verifica",
     workflow: { overall: States.VERIFICHE_CONSEGNA, bo: States.VALIDATO_BO },
     ownerId: T.v2.id,
     assegnatario: T.v2.name,
@@ -394,7 +401,7 @@ export const fascicoli: Fascicolo[] = [
     numero: "2026/02011",
     cliente: { nome: "Marta S.", email: "marta.s@example.com" },
     veicolo: { marca: "Kia", modello: "Sportage", targa: "KA404HH" },
-    stato: "In approvazione",
+    stato: "Consegna – da controllare",
     workflow: { overall: States.DA_RIVEDERE_VRC, bo: States.VALIDATO_BO },
     ownerId: T.v1.id,
     assegnatario: T.v1.name,
@@ -415,7 +422,7 @@ export const fascicoli: Fascicolo[] = [
     numero: "2026/02012",
     cliente: { nome: "Andrea C.", email: "andrea.c@example.com" },
     veicolo: { marca: "Toyota", modello: "Yaris Hybrid", targa: "TY505II" },
-    stato: "Firmato",
+    stato: "Completato",
     workflow: { overall: States.CONSEGNATO, bo: States.VALIDATO_BO },
     ownerId: T.v2.id,
     assegnatario: T.v2.name,
