@@ -9,9 +9,11 @@ export const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground hover:opacity-90",
         secondary: "bg-secondary text-secondary-foreground hover:opacity-90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        outline:
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        destructive: "bg-destructive text-destructive-foreground hover:opacity-90",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:opacity-90",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -24,23 +26,29 @@ export const buttonVariants = cva(
     defaultVariants: {
       variant: "default",
       size: "default",
-    },
-  },
+    } as const,
+  }
 );
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
+type ButtonProps<E extends React.ElementType = "button"> = {
+  as?: E;
+  className?: string;
+} & VariantProps<typeof buttonVariants> &
+  Omit<React.ComponentPropsWithoutRef<E>, "as" | "className">;
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
-    return (
-      <button
-        ref={ref}
-        className={cn(buttonVariants({ variant, size }), className)}
-        {...props}
-      />
-    );
-  },
-);
-Button.displayName = "Button";
+export function Button<E extends React.ElementType = "button">({
+                                                                 as,
+                                                                 className,
+                                                                 variant,
+                                                                 size,
+                                                                 ...props
+                                                               }: ButtonProps<E>) {
+  const Component = as || "button";
+
+  return (
+    <Component
+      className={cn(buttonVariants({ variant, size }), className)}
+      {...props}
+    />
+  );
+}

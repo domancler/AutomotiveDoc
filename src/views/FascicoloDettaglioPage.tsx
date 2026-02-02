@@ -74,12 +74,81 @@ function docSectionForTipo(tipo: DocumentoTipo): DocSection {
   }
 }
 
+/**
+ * NOTA TIPI:
+ * DocumentoTipo nel tuo progetto sembra NON includere tutte le stringhe qui sopra (o non in modo compatibile).
+ * Per evitare guerre di tipi, qui trattiamo le tipologie come stringhe UI,
+ * e castiamo a DocumentoTipo SOLO quando passiamo al runtime store/mock.
+ */
+const DOC_TIPI_BY_SECTION: Record<DocSection, readonly string[]> = {
+  contratto: ["Contratto di vendita", "Proposta d'acquisto", "Modulo ordine", "Condizioni generali di vendita"],
+  anagrafica: [
+    "Documento identità",
+    "Codice fiscale / Tessera sanitaria",
+    "Patente",
+    "Dichiarazione residenza",
+    "Privacy",
+    "Consenso marketing",
+  ],
+  finanziaria: ["Richiesta finanziamento", "Delibera finanziaria", "Busta paga / Redditi", "IBAN / Mandato SEPA", "Prova pagamento"],
+  permuta: ["Libretto permuta", "Certificato proprietà (CDP)", "Atto di vendita usato", "Perizia permuta", "Foto permuta"],
+  consegna: ["Verbale consegna", "Check-list preconsegna", "Liberatoria consegna", "Assicurazione consegna"],
+} as const;
+
+function allowedDocSectionsForRole(role?: Role): DocSection[] {
+  if (!role) return [];
+  if (role === "COMMERCIALE") return ["contratto", "anagrafica", "finanziaria", "permuta", "consegna"];
+  // BO Anagrafico: gestisce sia anagrafica che contratto (controlli formali e firme)
+  if (role === "BO") return ["contratto", "anagrafica"];
+  if (role === "BOF") return ["finanziaria"];
+  if (role === "BOU") return ["permuta"];
+  if (role === "CONSEGNATORE" || role === "VRC") return ["consegna"];
+  return [];
+}
+
+function formatDateIT(iso: string) {
+  try {
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function firstReviewBranchState(f: any): string | undefined {
+  const bo = f.workflow?.bo;
+  const bof = f.workflow?.bof;
+  const bou = f.workflow?.bou;
+  const candidates = [bo, bof, bou].filter(Boolean) as string[];
+  return candidates.find((s) => s === States.DA_RIVEDERE_BO || s === States.DA_RIVEDERE_BOF || s === States.DA_RIVEDERE_BOU);
+}
+
+function stateForRole(f: any, role?: Role): string | undefined {
+  const overall = f.workflow?.overall;
+  const bo = f.workflow?.bo ?? overall;
+  // fallback compatibilità: se overall è in validazione ma i rami non esistono (vecchi dati),
+  // assumili “in attesa di presa in carico” nel ramo specifico.
+  const bof = f.workflow?.bof ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOF : overall);
+  const bou = f.workflow?.bou ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOU : overall);
+
+  if (role === "BO") return bo;
+  if (role === "BOF") return bof;
+  if (role === "BOU") return bou;
+  if (role === "COMMERCIALE") return firstReviewBranchState(f) ?? overall;
+  if (role === "CONSEGNATORE") return overall;
+  if (role === "VRC") return f.workflow?.consegna ?? overall;
+  return overall;
+}
+
 function TipologiePicker(props: {
-  value: DocumentoTipo;
-  onChange: (v: DocumentoTipo) => void;
+  value: string;
+  onChange: (v: string) => void;
   disabled?: boolean;
   /** Tipologie selezionabili per il ruolo corrente */
-  allowedTipi: DocumentoTipo[];
+  allowedTipi: string[];
   /** Quando true mostra i gruppi per sezione */
   showGroups?: boolean;
 }) {
@@ -91,9 +160,11 @@ function TipologiePicker(props: {
   // click fuori per chiudere
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      const el = wrapRef.current as HTMLElement | null;
+      const el = wrapRef.current;
+      const target = e.target;
+      if (!(target instanceof Node)) return;
       if (!el) return;
-      if (el.contains(e.target as Node)) return;
+      if (el.contains(target)) return;
       setOpen(false);
     }
     if (!open) return;
@@ -110,7 +181,6 @@ function TipologiePicker(props: {
   });
 
   const flat = allowedTipi.filter((t) => match(t));
-
   const hasAny = showGroups ? grouped.some((g) => g.items.length > 0) : flat.length > 0;
 
   return (
@@ -144,9 +214,7 @@ function TipologiePicker(props: {
           </div>
 
           <div className="max-h-72 overflow-auto p-1">
-            {!hasAny && (
-              <div className="px-2 py-6 text-center text-sm text-muted-foreground">Nessun risultato</div>
-            )}
+            {!hasAny && <div className="px-2 py-6 text-center text-sm text-muted-foreground">Nessun risultato</div>}
 
             {showGroups ? (
               grouped
@@ -201,139 +269,42 @@ function TipologiePicker(props: {
   );
 }
 
-const DOC_TIPI_BY_SECTION: Record<DocSection, DocumentoTipo[]> = {
-  contratto: [
-    "Contratto di vendita",
-    "Proposta d'acquisto",
-    "Modulo ordine",
-    "Condizioni generali di vendita",
-  ],
-  anagrafica: [
-    "Documento identità",
-    "Codice fiscale / Tessera sanitaria",
-    "Patente",
-    "Dichiarazione residenza",
-    "Privacy",
-    "Consenso marketing",
-  ],
-  finanziaria: [
-    "Richiesta finanziamento",
-    "Delibera finanziaria",
-    "Busta paga / Redditi",
-    "IBAN / Mandato SEPA",
-    "Prova pagamento",
-  ],
-  permuta: [
-    "Libretto permuta",
-    "Certificato proprietà (CDP)",
-    "Atto di vendita usato",
-    "Perizia permuta",
-    "Foto permuta",
-  ],
-  consegna: [
-    "Verbale consegna",
-    "Check-list preconsegna",
-    "Liberatoria consegna",
-    "Assicurazione consegna",
-  ],
-};
-
-function allowedDocSectionsForRole(role?: Role): DocSection[] {
-  if (!role) return [];
-  if (role === "COMMERCIALE") return ["contratto", "anagrafica", "finanziaria", "permuta", "consegna"];
-  // BO Anagrafico: gestisce sia anagrafica che contratto (controlli formali e firme)
-  if (role === "BO") return ["contratto", "anagrafica"];
-  if (role === "BOF") return ["finanziaria"];
-  if (role === "BOU") return ["permuta"];
-  if (role === "CONSEGNATORE" || role === "VRC") return ["consegna"];
-  return [];
-}
-
-function formatDateIT(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("it-IT", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function firstReviewBranchState(f: any): string | undefined {
-  const bo = f.workflow?.bo;
-  const bof = f.workflow?.bof;
-  const bou = f.workflow?.bou;
-  const candidates = [bo, bof, bou].filter(Boolean) as string[];
-  return candidates.find(
-    (s) =>
-      s === States.DA_RIVEDERE_BO ||
-      s === States.DA_RIVEDERE_BOF ||
-      s === States.DA_RIVEDERE_BOU,
-  );
-}
-
-function stateForRole(f: any, role?: Role): string | undefined {
-  const overall = f.workflow?.overall;
-  const bo = f.workflow?.bo ?? overall;
-  // fallback compatibilità: se overall è in validazione ma i rami non esistono (vecchi dati),
-  // assumili “in attesa di presa in carico” nel ramo specifico.
-  const bof = f.workflow?.bof ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOF : overall);
-  const bou = f.workflow?.bou ?? (overall === States.DA_VALIDARE_BO ? States.DA_VALIDARE_BOU : overall);
-
-  if (role === "BO") return bo;
-  if (role === "BOF") return bof;
-  if (role === "BOU") return bou;
-  if (role === "COMMERCIALE") return firstReviewBranchState(f) ?? overall;
-  if (role === "CONSEGNATORE") return overall;
-  if (role === "VRC") return f.workflow?.consegna ?? overall;
-  return overall;
-}
-
 export function FascicoloDettaglioPage() {
   const { id } = useParams();
-  const fascicolo = useFascicolo(id);
+  const fascicoloId = id ?? "";
+  const fascicolo = useFascicolo(fascicoloId);
   const { user } = useAuth();
 
   const [tab, setTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
 
   // --- Documenti: aggiunta tipologie + paginazione ---
-  const [docTipo, setDocTipo] = useState<DocumentoTipo>("Documento identità");
+  const [docTipo, setDocTipo] = useState<string>("Documento identità");
   const [docRichiesto, setDocRichiesto] = useState(true);
   const [docNote, setDocNote] = useState("");
   const [docsPage, setDocsPage] = useState(0);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; label: string } | null>(null);
 
-  if (!fascicolo) {
-    return (
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Fascicolo non trovato</h1>
-        <p className="text-sm text-muted-foreground">ID: {id}</p>
-      </div>
-    );
-  }
-
-  const docStats = (() => {
-    const required = fascicolo.documenti.filter((d) => d.richiesto).length;
-    const present = fascicolo.documenti.filter((d) => d.presente).length;
-    return { required, present };
-  })();
-
-  // --- Read-only finché non sei in carico (o non hai permessi operativi nello stato corrente)
   const ctx: FascicoloContext = useMemo(() => {
     const anyF: any = fascicolo;
 
-    // IMPORTANT: nel dettaglio lo stato deve essere quello "del ramo" del ruolo loggato,
-    // altrimenti (es. BO in verifica) rimani in read-only perché overall non cambia.
+    if (!anyF) {
+      return {
+        state: undefined as any,
+        ownerId: undefined,
+        hasFinanziamento: false,
+        hasPermuta: false,
+        inChargeBO: null,
+        inChargeBOF: null,
+        inChargeBOU: null,
+        inChargeDelivery: null,
+        inChargeVRC: null,
+        deliverySentToVRC: false,
+      };
+    }
+
     const state = stateForRole(anyF, user?.role as Role | undefined) as any;
 
-    // Area attiva: se nel workflow esiste il ramo, deve essere considerata attiva anche se i flag booleani nel mock sono incompleti.
-    // Nel flusso attuale i tre rami BO sono sempre attivi. Considera attiva l'area se:
-    // - il flag è true, oppure
-    // - esiste il ramo nel workflow, oppure
-    // - overall è già in validazione (compatibilità con vecchi dati)
     const overall = anyF.workflow?.overall;
     const hasFinanziamento = Boolean(anyF.hasFinanziamento) || Boolean(anyF.workflow?.bof) || overall === States.DA_VALIDARE_BO;
     const hasPermuta = Boolean(anyF.hasPermuta) || Boolean(anyF.workflow?.bou) || overall === States.DA_VALIDARE_BO;
@@ -371,29 +342,39 @@ export function FascicoloDettaglioPage() {
 
   const readOnly = !canOperate;
 
-  // --- Documenti: permessi per sezione (le altre sezioni restano visibili ma in sola lettura)
+  const docStats = useMemo(() => {
+    if (!fascicolo) return { required: 0, present: 0 };
+    const required = fascicolo.documenti.filter((d) => d.richiesto).length;
+    const present = fascicolo.documenti.filter((d) => d.presente).length;
+    return { required, present };
+  }, [fascicolo]);
+
   const allowedSections = useMemo(() => allowedDocSectionsForRole(user?.role as Role | undefined), [user?.role]);
+
   const allowedTipi = useMemo(() => {
     const all = allowedSections.flatMap((s) => DOC_TIPI_BY_SECTION[s] ?? []);
     return Array.from(new Set(all));
   }, [allowedSections]);
 
   useEffect(() => {
-    // se cambia ruolo (o si logga un altro utente) riallinea la tipologia selezionata
     if (allowedTipi.length === 0) return;
     if (!allowedTipi.includes(docTipo)) {
       setDocTipo(allowedTipi[0]);
     }
   }, [allowedTipi, docTipo]);
 
-  // Nota: con le sezioni collassabili ha più senso mostrare tutto insieme (senza paginazione).
-  // Manteniamo comunque il calcolo per non stravolgere lo stato della pagina.
   const DOCS_PAGE_SIZE = 9999;
-  const docsTotalPages = Math.max(1, Math.ceil(fascicolo.documenti.length / DOCS_PAGE_SIZE));
+
+  const docsTotalPages = useMemo(() => {
+    if (!fascicolo) return 1;
+    return Math.max(1, Math.ceil(fascicolo.documenti.length / DOCS_PAGE_SIZE));
+  }, [fascicolo]);
+
   const docsRows = useMemo(() => {
+    if (!fascicolo) return [];
     const start = docsPage * DOCS_PAGE_SIZE;
     return fascicolo.documenti.slice(start, start + DOCS_PAGE_SIZE);
-  }, [fascicolo.documenti, docsPage]);
+  }, [fascicolo, docsPage]);
 
   const docsBySection = useMemo(() => {
     const by: Record<DocSection, typeof docsRows> = {
@@ -415,26 +396,41 @@ export function FascicoloDettaglioPage() {
     if (docsPage > last) setDocsPage(last);
   }, [docsPage, docsTotalPages]);
 
-  const vs = fascicolo.workflow ? visibleStatusForRole(fascicolo, user?.role as any) : null;
-  const showBackofficeTab = Boolean(
-    fascicolo.workflow &&
-      fascicolo.workflow.overall !== States.BOZZA &&
-      fascicolo.workflow.overall !== States.NUOVO &&
-      fascicolo.workflow.overall !== States.APPROVATO &&
-      fascicolo.workflow.overall !== States.IN_FINALIZZAZIONE &&
-      fascicolo.workflow.overall !== States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO &&
-      fascicolo.workflow.overall !== States.CONSEGNA_IN_VERIFICA &&
-      fascicolo.workflow.overall !== States.CONSEGNA_DA_CONTROLLARE &&
-      fascicolo.workflow.overall !== States.COMPLETATO
-  );
+  const vs = useMemo(() => {
+    if (!fascicolo) return null;
+    return fascicolo.workflow ? visibleStatusForRole(fascicolo, user?.role as any) : null;
+  }, [fascicolo, user?.role]);
+
+  const showBackofficeTab = useMemo(() => {
+    if (!fascicolo?.workflow) return false;
+    const overall = fascicolo.workflow.overall;
+    return Boolean(
+      overall !== States.BOZZA &&
+      overall !== States.NUOVO &&
+      overall !== States.APPROVATO &&
+      overall !== States.IN_FINALIZZAZIONE &&
+      overall !== States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO &&
+      overall !== States.CONSEGNA_IN_VERIFICA &&
+      overall !== States.CONSEGNA_DA_CONTROLLARE &&
+      overall !== States.COMPLETATO,
+    );
+  }, [fascicolo]);
+
+  // ✅ early return DOPO hooks
+  if (!fascicolo) {
+    return (
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold">Fascicolo non trovato</h1>
+        <p className="text-sm text-muted-foreground">ID: {fascicoloId || "—"}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Fascicolo {fascicolo.numero}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Fascicolo {fascicolo.numero}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <div className="flex items-center gap-2">
               <Car className="h-4 w-4 text-muted-foreground" />
@@ -479,8 +475,6 @@ export function FascicoloDettaglioPage() {
         </div>
       </div>
 
-      {/* Stati BackOffice: mostrati in un tab dedicato quando esiste il workflow */}
-
       <Card>
         <CardHeader>
           <CardTitle>Avanzamento</CardTitle>
@@ -509,9 +503,7 @@ export function FascicoloDettaglioPage() {
           <TabsTrigger value="docs">Documenti</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="notes">Note</TabsTrigger>
-          {showBackofficeTab && (
-            <TabsTrigger value="backoffice">Backoffice</TabsTrigger>
-          )}
+          {showBackofficeTab && <TabsTrigger value="backoffice">Backoffice</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview">
@@ -522,9 +514,15 @@ export function FascicoloDettaglioPage() {
                 <CardDescription>Dati essenziali</CardDescription>
               </CardHeader>
               <CardContent className="text-sm">
-                <div><span className="text-muted-foreground">Nome:</span> {fascicolo.cliente.nome}</div>
-                <div><span className="text-muted-foreground">Email:</span> {fascicolo.cliente.email ?? "—"}</div>
-                <div><span className="text-muted-foreground">Telefono:</span> {fascicolo.cliente.telefono ?? "—"}</div>
+                <div>
+                  <span className="text-muted-foreground">Nome:</span> {fascicolo.cliente.nome}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Email:</span> {fascicolo.cliente.email ?? "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Telefono:</span> {fascicolo.cliente.telefono ?? "—"}
+                </div>
               </CardContent>
             </Card>
 
@@ -534,10 +532,18 @@ export function FascicoloDettaglioPage() {
                 <CardDescription>Informazioni auto</CardDescription>
               </CardHeader>
               <CardContent className="text-sm">
-                <div><span className="text-muted-foreground">Marca:</span> {fascicolo.veicolo.marca}</div>
-                <div><span className="text-muted-foreground">Modello:</span> {fascicolo.veicolo.modello}</div>
-                <div><span className="text-muted-foreground">Targa:</span> {fascicolo.veicolo.targa ?? "—"}</div>
-                <div><span className="text-muted-foreground">VIN:</span> {fascicolo.veicolo.vin ?? "—"}</div>
+                <div>
+                  <span className="text-muted-foreground">Marca:</span> {fascicolo.veicolo.marca}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Modello:</span> {fascicolo.veicolo.modello}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Targa:</span> {fascicolo.veicolo.targa ?? "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">VIN:</span> {fascicolo.veicolo.vin ?? "—"}
+                </div>
               </CardContent>
             </Card>
 
@@ -592,12 +598,10 @@ export function FascicoloDettaglioPage() {
                   <span className="text-muted-foreground">Prevista:</span> {fascicolo.hasPermuta ? "Sì" : "No"}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Veicolo:</span>{" "}
-                  {fascicolo.hasPermuta ? fascicolo.permuta?.veicolo ?? "—" : "—"}
+                  <span className="text-muted-foreground">Veicolo:</span> {fascicolo.hasPermuta ? fascicolo.permuta?.veicolo ?? "—" : "—"}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Targa:</span>{" "}
-                  {fascicolo.hasPermuta ? fascicolo.permuta?.targa ?? "—" : "—"}
+                  <span className="text-muted-foreground">Targa:</span> {fascicolo.hasPermuta ? fascicolo.permuta?.targa ?? "—" : "—"}
                 </div>
                 <div>
                   <span className="text-muted-foreground">KM:</span>{" "}
@@ -644,19 +648,12 @@ export function FascicoloDettaglioPage() {
                       showGroups={user?.role === "COMMERCIALE"}
                       disabled={readOnly || allowedTipi.length === 0}
                     />
-                    {allowedTipi.length === 0 && (
-                      <div className="mt-1 text-xs text-muted-foreground">Nessuna tipologia disponibile</div>
-                    )}
+                    {allowedTipi.length === 0 && <div className="mt-1 text-xs text-muted-foreground">Nessuna tipologia disponibile</div>}
                   </div>
 
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">Note (opzionale)</div>
-                    <Input
-                      value={docNote}
-                      onChange={(e) => setDocNote(e.target.value)}
-                      placeholder="Es: cointestatario"
-                      disabled={readOnly}
-                    />
+                    <Input value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="Es: cointestatario" disabled={readOnly} />
                   </div>
 
                   <div className="space-y-1">
@@ -681,8 +678,8 @@ export function FascicoloDettaglioPage() {
                   <div className="flex items-end justify-end">
                     <Button
                       onClick={() => {
-                        addDocumentoRow(fascicolo.id, {
-                          tipo: docTipo,
+                        addDocumentoRow(fascicoloId, {
+                          tipo: docTipo as DocumentoTipo,
                           richiesto: docRichiesto,
                           note: docNote.trim() ? docNote.trim() : undefined,
                         });
@@ -714,60 +711,59 @@ export function FascicoloDettaglioPage() {
                           Documenti richiesti: {required} · presenti: {present}
                         </div>
                       </summary>
+
                       {!canEditSection && (
                         <div className="border-t bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
-                          {readOnly
-                            ? "Solo lettura: prendi in carico il fascicolo per operare sui documenti."
-                            : "Solo lettura: questa sezione è gestita da un altro reparto."}
+                          {readOnly ? "Solo lettura: prendi in carico il fascicolo per operare sui documenti." : "Solo lettura: questa sezione è gestita da un altro reparto."}
                         </div>
                       )}
 
                       <div className="border-t">
                         <table className="w-full text-sm">
                           <thead className="bg-muted/60 text-muted-foreground">
-                            <tr>
-                              <th className="px-4 py-3 text-left font-medium">Tipo</th>
-                              <th className="px-4 py-3 text-left font-medium">Richiesto</th>
-                              <th className="px-4 py-3 text-left font-medium">Presente</th>
-                              <th className="px-4 py-3 text-left font-medium">Note</th>
-                            </tr>
+                          <tr>
+                            <th className="px-4 py-3 text-left font-medium">Tipo</th>
+                            <th className="px-4 py-3 text-left font-medium">Richiesto</th>
+                            <th className="px-4 py-3 text-left font-medium">Presente</th>
+                            <th className="px-4 py-3 text-left font-medium">Note</th>
+                          </tr>
                           </thead>
                           <tbody>
-                            {rows.map((d) => (
-                              <tr key={d.id} className="border-t">
-                                <td className="px-4 py-3 font-medium">{d.tipo}</td>
-                                <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
-                                <td className="px-4 py-3">
+                          {rows.map((d) => (
+                            <tr key={d.id} className="border-t">
+                              <td className="px-4 py-3 font-medium">{d.tipo}</td>
+                              <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
+                              <td className="px-4 py-3">
                                   <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
                                     {d.presente ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
                                     {d.presente ? "Presente" : "Mancante"}
                                   </span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="text-muted-foreground">{d.note?.trim() ? d.note : "—"}</div>
-                                    <div className="flex flex-wrap items-center justify-end gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => markDocumentoPresente(fascicolo.id, d.id)}
-                                        disabled={!canEditSection || d.presente}
-                                      >
-                                        <FileUp className="h-4 w-4" /> Carica
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
-                                        disabled={!canEditSection}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="text-muted-foreground">{d.note?.trim() ? d.note : "—"}</div>
+                                  <div className="flex flex-wrap items-center justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => markDocumentoPresente(fascicoloId, d.id)}
+                                      disabled={!canEditSection || d.presente}
+                                    >
+                                      <FileUp className="h-4 w-4" /> Carica
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
+                                      disabled={!canEditSection}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
                                   </div>
-                                </td>
-                              </tr>
-                            ))}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
                           </tbody>
                         </table>
                       </div>
@@ -785,13 +781,14 @@ export function FascicoloDettaglioPage() {
                 onOpenChange={(o) => !o && setRemoveTarget(null)}
                 onConfirm={() => {
                   if (!removeTarget) return;
-                  removeDocumentoRow(fascicolo.id, removeTarget.id);
+                  removeDocumentoRow(fascicoloId, removeTarget.id);
                   setRemoveTarget(null);
                 }}
               />
             </CardContent>
           </Card>
         </TabsContent>
+
         <TabsContent value="timeline">
           <Card>
             <CardHeader>
@@ -852,15 +849,9 @@ export function FascicoloDettaglioPage() {
               <div className="rounded-lg border p-3">
                 <div className="text-sm font-medium">Aggiungi nota</div>
                 <div className="mt-2 flex flex-col gap-2 md:flex-row">
-                  <Input
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    placeholder={readOnly ? "Solo lettura" : "Scrivi qui..."}
-                    disabled={readOnly}
-                  />
+                  <Input value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder={readOnly ? "Solo lettura" : "Scrivi qui..."} disabled={readOnly} />
                   <Button
                     onClick={() => {
-                      // mock only
                       setNewNote("");
                       alert("Demo: qui salveresti la nota su backend 🙂");
                     }}
@@ -879,9 +870,7 @@ export function FascicoloDettaglioPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Stati BackOffice</CardTitle>
-                <CardDescription>
-                  Dettaglio dei rami indipendenti (anagrafico, finanziario, permuta)
-                </CardDescription>
+                <CardDescription>Dettaglio dei rami indipendenti (anagrafico, finanziario, permuta)</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {(() => {

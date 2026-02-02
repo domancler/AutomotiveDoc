@@ -90,7 +90,7 @@ export function DateRangePicker({ from, to, onChange, className }: DateRangePick
     };
     const onDown = (e: MouseEvent) => {
       if (!wrapRef.current) return;
-      if (!wrapRef.current.contains(e.target as Node)) setOpen(false);
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("mousedown", onDown);

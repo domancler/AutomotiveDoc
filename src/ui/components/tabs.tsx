@@ -38,7 +38,7 @@ export function TabsTrigger({ value, className, ...props }: React.ButtonHTMLAttr
         active ? "bg-background text-foreground shadow" : "hover:text-foreground",
         className,
       )}
-      onClick={() => ctx.setValue(value)}
+      onClick={() => ctx?.setValue(value)}
       {...props}
     />
   );

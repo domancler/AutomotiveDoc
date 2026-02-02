@@ -50,7 +50,7 @@ export function NoteConfirmDialog({
     };
   }, [open, onOpenChange]);
 
-  const canConfirm = note.trim().length > 0;
+  const canConfirm = note?.trim().length > 0;
 
   if (!open) return null;
 
@@ -108,7 +108,7 @@ export function NoteConfirmDialog({
             )}
             onClick={() => {
               if (!canConfirm) return;
-              onConfirm(note.trim());
+              onConfirm(note?.trim());
             }}
           >
             {confirmText}
