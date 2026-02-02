@@ -88,7 +88,13 @@ export type Fascicolo = {
   progress: number; // 0..100
   documenti: Documento[];
   timeline: { at: string; actor: string; event: string }[];
-  note: { id: string; at: string; author: string; text: string; kind?: "reopen" | "generic" }[];
+  note: {
+    id: string;
+    at: string;
+    author: string;
+    text: string;
+    kind?: "reopen" | "generic" | "cancel";
+  }[];
 };
 
 function isoDaysAgo(days: number) {

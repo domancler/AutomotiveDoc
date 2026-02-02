@@ -19,11 +19,12 @@ function normalizeStatoFromOverall(overall?: StateCode): Fascicolo["stato"] {
 
 function requiredBranches(_f: Fascicolo) {
   return {
-    // Nel dominio attuale i tre rami Back Office sono sempre presenti e indipendenti.
-    // (Anagrafico / Finanziario / Permuta)
+    // Nel dominio:
+    // - Anagrafico (BO) è sempre presente
+    // - Finanziario (BOF) e Permuta (BOU) sono opzionali in base ai flag del fascicolo
     bo: true,
-    bof: true,
-    bou: true,
+    bof: !!_f.hasFinanziamento,
+    bou: !!_f.hasPermuta,
   };
 }
 
@@ -51,12 +52,29 @@ export function applyWorkflowAction(
   const actorName = actor.name || actor.role || "Utente";
   const actorId = actor.id ?? null;
 
-  const wf = f.workflow ?? {
-    overall: States.BOZZA,
-    bo: States.BOZZA,
-    bof: States.BOZZA,
-    bou: States.BOZZA,
-  };
+  // Normalizza la presenza dei rami opzionali in base ai flag di dominio.
+  // IMPORTANTISSIMO:
+  // - bof/bou devono essere *assenti* quando non sono attivi, altrimenti la UI li interpreta come presenti.
+  const req0 = requiredBranches(f);
+  const wf = (() => {
+    const base: any = f.workflow
+      ? { ...f.workflow }
+      : {
+          overall: States.BOZZA,
+          bo: States.BOZZA,
+        };
+
+    // BO sempre presente
+    if (!base.bo) base.bo = States.BOZZA;
+
+    if (req0.bof) base.bof = base.bof ?? States.BOZZA;
+    else delete base.bof;
+
+    if (req0.bou) base.bou = base.bou ?? States.BOZZA;
+    else delete base.bou;
+
+    return base as Fascicolo["workflow"];
+  })();
 
   // Se è già annullato: tutto no-op (irreversibile)
   if (wf.overall === States.ANNULLATO) return f;
@@ -78,6 +96,10 @@ export function applyWorkflowAction(
   };
 
   const setBranch = (branch: "bo" | "bof" | "bou", s: StateCode) => {
+    // Non scrivere mai bof/bou se il ramo non è attivo (resta assente dalla workflow).
+    if (branch === "bof" && !req.bof) return;
+    if (branch === "bou" && !req.bou) return;
+
     const cur = next.workflow as any;
     next = {
       ...next,
