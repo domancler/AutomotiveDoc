@@ -182,12 +182,21 @@ function endOfMonthYmd(ymd: string) {
 
 export function FascicoliFilters({
   rows,
+  optionsRows,
   value,
   onChange,
   defaultOpen = false,
   showAssegnatario = true,
 }: {
   rows: Fascicolo[];
+  /**
+   * Sorgente *stabile* delle opzioni dei filtri.
+   * Usala per fare uno "snapshot" iniziale (es. tutti i fascicoli a sistema),
+   * così le opzioni non cambiano mentre l'utente applica filtri.
+   *
+   * Se non passata, verrà usato `rows`.
+   */
+  optionsRows?: Fascicolo[];
   value: FascicoliFilterState;
   onChange: (next: FascicoliFilterState) => void;
   defaultOpen?: boolean;
@@ -195,9 +204,30 @@ export function FascicoliFilters({
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
 
-  const stati = React.useMemo(() => uniqueSorted(rows.map((r) => r.stato)), [rows]);
-  const assegnatari = React.useMemo(() => uniqueSorted(rows.map((r) => r.assegnatario)), [rows]);
-  const marche = React.useMemo(() => uniqueSorted(rows.map((r) => r.veicolo.marca)), [rows]);
+  // --- Snapshot iniziale delle opzioni (una sola volta) ---
+  const source = optionsRows ?? rows;
+  const [options, setOptions] = React.useState<{
+    stati: string[];
+    assegnatari: string[];
+    marche: string[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    // "Seconda" strategia: facciamo lo snapshot delle opzioni *all'inizio* basandoci
+    // sulla sorgente completa (es. tutti i fascicoli), e poi lo congeliamo.
+    if (options) return;
+    if (!source || source.length === 0) return;
+
+    setOptions({
+      stati: uniqueSorted(source.map((r) => r.stato)),
+      assegnatari: uniqueSorted(source.map((r) => r.assegnatario)),
+      marche: uniqueSorted(source.map((r) => r.veicolo.marca)),
+    });
+  }, [options, source]);
+
+  const stati = options?.stati ?? uniqueSorted(rows.map((r) => r.stato));
+  const assegnatari = options?.assegnatari ?? uniqueSorted(rows.map((r) => r.assegnatario));
+  const marche = options?.marche ?? uniqueSorted(rows.map((r) => r.veicolo.marca));
 
   const activeCount = countActive(value);
 

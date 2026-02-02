@@ -45,7 +45,7 @@ export function FascicoliTuttiPage() {
         </div>
       </div>
 
-      <FascicoliFilters rows={fascicoli} value={filters} onChange={setFilters} defaultOpen={false} />
+      <FascicoliFilters rows={fascicoli} optionsRows={fascicoli} value={filters} onChange={setFilters} defaultOpen={false} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">

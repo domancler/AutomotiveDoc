@@ -166,6 +166,7 @@ export function FascicoliInCorsoPage() {
 
       <FascicoliFilters
         rows={base}
+        optionsRows={fascicoli}
         value={filters}
         onChange={setFilters}
         defaultOpen={false}
