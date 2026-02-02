@@ -12,6 +12,16 @@ export function Topbar() {
   const showTakeTabs = !!user && roleHasTakeAction(user.role);
   const canViewAll = !!user && can(user, "FASCICOLO.VIEW_ALL");
 
+  // Link coerente con i tab realmente disponibili per il ruolo.
+  // Se il ruolo non prevede la presa in carico, deve tornare a "Tutti".
+  const fascicoliHome = !user
+    ? "/dashboard"
+    : canViewAll
+      ? showTakeTabs
+        ? "/fascicoli/in-corso"
+        : "/fascicoli/tutti"
+      : "/dashboard";
+
 
   const isFascicoloDetail =
     pathname.startsWith("/fascicoli/") &&
@@ -101,7 +111,7 @@ export function Topbar() {
       {isFascicoloDetail && (
         <div className="border-t bg-muted/40">
           <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
-            <Link to="/fascicoli/in-corso" className="hover:underline">
+            <Link to={fascicoliHome} className="hover:underline">
               Fascicoli
             </Link>
             <ChevronRight className="h-4 w-4" />
