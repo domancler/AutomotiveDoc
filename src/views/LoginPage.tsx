@@ -2,30 +2,23 @@ import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/auth/AuthProvider";
 import { DEMO_USERS } from "@/auth/auth";
+import type { Role } from "@/auth/roles";
 import { Button } from "@/ui/components/button";
 
-function roleLabel(role?: string) {
-  switch (role) {
-    case "ADMIN":
-    case "AMMINISTRATIVO":
-      return "Admin";
-    case "RESPONSABILE":
-      return "Supervisore";
-    case "COMMERCIALE":
-      return "Venditore";
-    case "BO":
-      return "BackOffice Anagrafico";
-    case "BOF":
-      return "BackOffice Finanziario";
-    case "BOU":
-      return "BackOffice Permuta";
-    case "CONSEGNATORE":
-      return "Operatore Consegna";
-    case "VRC":
-      return "Controllo Consegna";
-    default:
-      return role ?? "Utente";
-  }
+const ROLE_LABEL: Record<Role, string> = {
+  ADMIN: "Admin",
+  AMMINISTRATIVO: "Amministrativo",
+  RESPONSABILE: "Supervisore",
+  COMMERCIALE: "Venditore",
+  BO: "BackOffice Anagrafico",
+  BOF: "BackOffice Finanziario",
+  BOU: "BackOffice Permuta",
+  CONSEGNATORE: "Operatore consegna",
+  VRC: "Controllo consegna",
+};
+
+function roleLabel(role: Role) {
+  return ROLE_LABEL[role] ?? role;
 }
 
 export default function LoginPage() {
@@ -103,8 +96,6 @@ export default function LoginPage() {
               Selezionato: <span className="font-medium text-foreground">{selected.name ?? selected.username}</span>
               <span className="mx-1">·</span>
               ruolo: <span className="font-medium text-foreground">{roleLabel((selected as any)?.role)}</span>
-              <span className="mx-1">·</span>
-              username: <span className="font-mono">{selected.username}</span>
             </div>
           )}
         </div>
