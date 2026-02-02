@@ -183,7 +183,10 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
     const inCharge = fascicolo?.inChargeBO ?? null;
 
     // “Disponibili” = solo se nessuno del ruolo ha già preso in carico
-    if (action === "FASCICOLO.TAKE_BO") return state === States.DA_VALIDARE_BO && !inCharge;
+    if (action === "FASCICOLO.TAKE_BO") {
+      const last = fascicolo?.lastInChargeBO ?? null;
+      return state === States.DA_VALIDARE_BO && !inCharge && (!last || last === user.id);
+    }
 
     // Dopo la presa in carico, può operare SOLO chi lo ha in carico
     if (action === "FASCICOLO.VALIDATE_BO") return state === States.VERIFICHE_BO && inCharge === user.id;
@@ -199,7 +202,10 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
 
     const inCharge = fascicolo?.inChargeBOF ?? null;
 
-    if (action === "FASCICOLO.TAKE_BOF") return state === States.DA_VALIDARE_BOF && !inCharge;
+    if (action === "FASCICOLO.TAKE_BOF") {
+      const last = fascicolo?.lastInChargeBOF ?? null;
+      return state === States.DA_VALIDARE_BOF && !inCharge && (!last || last === user.id);
+    }
     if (action === "FASCICOLO.VALIDATE_BOF") return state === States.VERIFICHE_BOF && inCharge === user.id;
     if (action === "FASCICOLO.REQUEST_REVIEW_BOF") return state === States.VERIFICHE_BOF && inCharge === user.id;
 
@@ -213,7 +219,10 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
 
     const inCharge = fascicolo?.inChargeBOU ?? null;
 
-    if (action === "FASCICOLO.TAKE_BOU") return state === States.DA_VALIDARE_BOU && !inCharge;
+    if (action === "FASCICOLO.TAKE_BOU") {
+      const last = fascicolo?.lastInChargeBOU ?? null;
+      return state === States.DA_VALIDARE_BOU && !inCharge && (!last || last === user.id);
+    }
     if (action === "FASCICOLO.VALIDATE_BOU") return state === States.VERIFICHE_BOU && inCharge === user.id;
     if (action === "FASCICOLO.REQUEST_REVIEW_BOU") return state === States.VERIFICHE_BOU && inCharge === user.id;
 

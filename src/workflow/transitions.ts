@@ -270,6 +270,7 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeBO: actorId,
+        lastInChargeBO: actorId,
         timeline: pushTimeline(next, actorName, "BO Anagrafico: preso in carico"),
       };
       return next;
@@ -301,6 +302,7 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeBOF: actorId,
+        lastInChargeBOF: actorId,
         timeline: pushTimeline(next, actorName, "BO Finanziario: preso in carico"),
       };
       return next;
@@ -332,6 +334,7 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeBOU: actorId,
+        lastInChargeBOU: actorId,
         timeline: pushTimeline(next, actorName, "BO Permuta: preso in carico"),
       };
       return next;
