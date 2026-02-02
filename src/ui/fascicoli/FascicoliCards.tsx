@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/ui/components/button";
 import { Card } from "@/ui/components/card";
 import { cn, formatEuro } from "@/lib/utils";
 import { statoVariant } from "@/ui/fascicoli/status";
+import { colorForStatoLabel } from "@/ui/fascicoli/statusColors";
 import { useAuth } from "@/auth/AuthProvider";
 import { visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
 
@@ -124,11 +125,19 @@ export function FascicoliCards({
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="min-w-0 truncate font-semibold">{vehicle}</div>
                     {vs ? (
-                      <Badge className={cn("border-0")} variant={vs.variant as any}>
+                      <Badge
+                        className={cn("border-0 text-white")}
+                        variant={vs.variant as any}
+                        style={{ backgroundColor: colorForStatoLabel(vs.label) }}
+                      >
                         {vs.label}
                       </Badge>
                     ) : (
-                      <Badge className={cn("border-0")} variant={statoVariant(f.stato) as any}>
+                      <Badge
+                        className={cn("border-0 text-white")}
+                        variant={statoVariant(f.stato) as any}
+                        style={{ backgroundColor: colorForStatoLabel(f.stato) }}
+                      >
                         {f.stato}
                       </Badge>
                     )}

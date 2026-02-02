@@ -17,6 +17,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+import { STATUS_COLORS, tint } from "@/ui/fascicoli/statusColors";
 
 type ChartDatum = { name: string; value: number };
 
@@ -111,7 +112,39 @@ function macroLabel(code?: StateCode): string {
   )
     return "Consegna";
   if (code === States.COMPLETATO) return "Completato";
-  return "Altro";
+  if (code === States.ANNULLATO) return "Annullato";
+  // meglio vedere il codice reale che un generico "Altro"
+  return code;
+}
+
+function macroColor(label: string): string {
+  switch (label) {
+    case "Bozza":
+      return STATUS_COLORS.BOZZA;
+    case "Nuovo":
+      return STATUS_COLORS.NUOVO;
+    case "In validazione":
+      return STATUS_COLORS.VALIDAZIONE;
+    case "Approvato":
+      return STATUS_COLORS.APPROVATO;
+    case "Consegna":
+      return STATUS_COLORS.CONSEGNA;
+    case "Completato":
+      return STATUS_COLORS.COMPLETATO;
+    case "Annullato":
+      return STATUS_COLORS.ANNULLATO;
+    default:
+      return STATUS_COLORS.BOZZA;
+  }
+}
+
+function consegnaMicroColor(label: string): string {
+  const base = STATUS_COLORS.CONSEGNA;
+  if (label.startsWith("Finalizzazione")) return tint(base, 0.55);
+  if (label === "In attesa di presa in carico") return tint(base, 0.40);
+  if (label === "In verifica") return tint(base, 0.25);
+  if (label === "Da controllare") return tint(base, 0.12);
+  return tint(base, 0.65);
 }
 
 function increment(map: Map<string, number>, key: string, by = 1) {
@@ -143,7 +176,7 @@ function boMicroLabel(code?: StateCode): string {
     case States.VALIDATO_BO:
     case States.VALIDATO_BOF:
     case States.VALIDATO_BOU:
-      return "In validazione – Validato";
+      return "Validato";
     default:
       return "—";
   }
@@ -155,6 +188,7 @@ function consegnaMicroLabel(code?: StateCode): string {
   // qui mostriamo quindi SOLO la parte specifica, senza prefisso "Consegna –".
   switch (code) {
     case States.IN_FINALIZZAZIONE:
+      return "In finalizzazione";
     case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
       return "In attesa di presa in carico";
     case States.CONSEGNA_IN_VERIFICA:
@@ -262,7 +296,7 @@ export function DashboardPage() {
       "Approvato",
       "Consegna",
       "Completato",
-      "Altro",
+      "Annullato",
       "—",
     ]);
   }, [fascicoli]);
@@ -286,7 +320,7 @@ export function DashboardPage() {
       "In attesa di presa in carico",
       "In verifica",
       "Da controllare",
-      "In validazione – Validato",
+      "Validato",
       "—",
     ]);
   }, [fascicoli]);
@@ -300,6 +334,7 @@ export function DashboardPage() {
     }
 
     return toChartData(map, [
+      "In finalizzazione",
       "In attesa di presa in carico",
       "In verifica",
       "Da controllare",
@@ -374,8 +409,13 @@ export function DashboardPage() {
                   stroke="hsl(var(--background))"
                   strokeWidth={2}
                 >
-                  {macroStatusData.map((_, idx) => (
-                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                  {macroStatusData.map((entry) => (
+                    <Cell
+                      key={entry.name}
+                      fill={macroColor(entry.name)}
+                      stroke="rgba(0,0,0,0.06)"
+                      strokeWidth={1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
@@ -437,7 +477,7 @@ export function DashboardPage() {
                   tickLine={{ stroke: AXIS_STROKE }}
                 />
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />
-                <Bar dataKey="value" fill={CHART_COLORS[1]} radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" fill={tint(STATUS_COLORS.VALIDAZIONE, 0.25)} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -460,8 +500,13 @@ export function DashboardPage() {
                   stroke="hsl(var(--background))"
                   strokeWidth={2}
                 >
-                  {consegnaDetailData.map((_, idx) => (
-                    <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                  {consegnaDetailData.map((entry) => (
+                    <Cell
+                      key={entry.name}
+                      fill={consegnaMicroColor(entry.name)}
+                      stroke="rgba(0,0,0,0.06)"
+                      strokeWidth={1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} />

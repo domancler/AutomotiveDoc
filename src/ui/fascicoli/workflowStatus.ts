@@ -4,7 +4,7 @@ import { States, type StateCode } from "@/workflow/states";
 
 export type VisibleStatus = {
   label: string;
-  variant: "success" | "warning" | "danger" | "secondary";
+  variant: "success" | "warning" | "danger" | "secondary" | "info";
   /** per debug/uso interno */
   code?: StateCode;
 };
@@ -36,7 +36,7 @@ function niceStateLabel(state?: StateCode) {
     case States.VALIDATO_BOU:
       // NB: "Validato" non è uno stato macro del fascicolo.
       // È un micro-stato di ramo (validazione BackOffice).
-      return "In validazione – Validato";
+      return "Validato";
 
     case States.APPROVATO:
       return "Approvato";
@@ -77,17 +77,19 @@ function toVisibleStatus(state?: StateCode, label?: string): VisibleStatus {
 function variantFromState(state?: StateCode): VisibleStatus["variant"] {
   if (!state) return "secondary";
   if (state === States.BOZZA) return "secondary";
+  if (state === States.NUOVO) return "info";
   if (state === States.COMPLETATO) return "success";
   if (state === States.APPROVATO) return "success";
   if (state === States.ANNULLATO) return "danger";
 
+  // "Da controllare" / "Da rivedere": richiede attenzione ma non è errore, meglio un colore neutro (blu)
   if (
     state === States.DA_RIVEDERE_BO ||
     state === States.DA_RIVEDERE_BOF ||
     state === States.DA_RIVEDERE_BOU ||
     state === States.CONSEGNA_DA_CONTROLLARE
   )
-    return "danger";
+    return "info";
 
   if (
     state === States.DA_VALIDARE_BO ||
@@ -111,7 +113,7 @@ function variantFromState(state?: StateCode): VisibleStatus["variant"] {
     state === States.VALIDATO_BOF ||
     state === States.VALIDATO_BOU
   )
-    return "secondary";
+    return "success";
 
   return "secondary";
 }

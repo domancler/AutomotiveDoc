@@ -10,6 +10,11 @@ const badgeVariants = cva(
         default: "bg-primary text-primary-foreground border-transparent",
         secondary: "bg-secondary text-secondary-foreground border-transparent",
         outline: "text-foreground",
+        /**
+         * Info: stato neutro/operativo (es. Nuovo, Da controllare, Consegna in corso)
+         * Colore coerente e professionale, non aggressivo.
+         */
+        info: "bg-blue-600 text-white border-transparent",
         success: "bg-emerald-600 text-white border-transparent",
         warning: "bg-amber-500 text-white border-transparent",
         danger: "bg-destructive text-destructive-foreground border-transparent",

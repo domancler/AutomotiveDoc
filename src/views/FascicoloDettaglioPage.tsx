@@ -13,6 +13,7 @@ import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
 import { useAuth } from "@/auth/AuthProvider";
 import { branchStatusBadges, visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
 import { statoVariant } from "@/ui/fascicoli/status";
+import { colorForStatoLabel } from "@/ui/fascicoli/statusColors";
 import { States } from "@/workflow/states";
 import type { DocumentoTipo } from "@/mock/fascicoli";
 import { addDocumentoRow, markDocumentoPresente, removeDocumentoRow } from "@/mock/runtimeFascicoliStore";
@@ -456,11 +457,19 @@ export function FascicoloDettaglioPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           {vs ? (
-            <Badge className="border-0 text-sm px-3 py-1" variant={vs.variant as any}>
+            <Badge
+              className="border-0 text-sm px-3 py-1 text-white"
+              variant={vs.variant as any}
+              style={{ backgroundColor: colorForStatoLabel(vs.label) }}
+            >
               {vs.label}
             </Badge>
           ) : (
-            <Badge className="border-0 text-sm px-3 py-1" variant={statoVariant(fascicolo.stato) as any}>
+            <Badge
+              className="border-0 text-sm px-3 py-1 text-white"
+              variant={statoVariant(fascicolo.stato) as any}
+              style={{ backgroundColor: colorForStatoLabel(fascicolo.stato) }}
+            >
               {fascicolo.stato}
             </Badge>
           )}
@@ -877,9 +886,27 @@ export function FascicoloDettaglioPage() {
                   const s = branchStatusBadges(fascicolo);
                   return (
                     <>
-                      <Badge variant={s.bo.variant as any}>Anagrafico: {s.bo.label}</Badge>
-                      <Badge variant={s.bof.variant as any}>Finanziario: {s.bof.label}</Badge>
-                      <Badge variant={s.bou.variant as any}>Permuta: {s.bou.label}</Badge>
+                      <Badge
+                        className="border-0 text-white"
+                        variant={s.bo.variant as any}
+                        style={{ backgroundColor: colorForStatoLabel(s.bo.label) }}
+                      >
+                        Anagrafico: {s.bo.label}
+                      </Badge>
+                      <Badge
+                        className="border-0 text-white"
+                        variant={s.bof.variant as any}
+                        style={{ backgroundColor: colorForStatoLabel(s.bof.label) }}
+                      >
+                        Finanziario: {s.bof.label}
+                      </Badge>
+                      <Badge
+                        className="border-0 text-white"
+                        variant={s.bou.variant as any}
+                        style={{ backgroundColor: colorForStatoLabel(s.bou.label) }}
+                      >
+                        Permuta: {s.bou.label}
+                      </Badge>
                     </>
                   );
                 })()}
