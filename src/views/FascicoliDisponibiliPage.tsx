@@ -33,13 +33,13 @@ function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
     case "Approvato":
       return States.APPROVATO;
     case "Completato":
-      return States.CONSEGNATO;
+      return States.COMPLETATO;
     case "Consegna – in attesa di presa in carico":
-      return States.DA_VALIDARE_CONSEGNA;
+      return States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO;
     case "Consegna – in verifica":
-      return States.VERIFICHE_CONSEGNA;
+      return States.CONSEGNA_IN_VERIFICA;
     case "Consegna – da controllare":
-      return States.DA_RIVEDERE_VRC;
+      return States.CONSEGNA_DA_CONTROLLARE;
     case "Annullato":
       return States.ANNULLATO;
     case "Da controllare":
@@ -111,7 +111,7 @@ function roleMatchesAvailability(role: Role, overall: StateCode): boolean {
   if (overall === States.BOZZA) return role === "COMMERCIALE";
   if (overall === States.DA_VALIDARE_BO) return role === "BO" || role === "BOF" || role === "BOU";
   if (overall === States.APPROVATO) return role === "CONSEGNATORE";
-  if (overall === States.DA_VALIDARE_CONSEGNA) return role === "VRC";
+  if (overall === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO) return role === "VRC";
 
   // Gli altri stati non hanno "Disponibili" dedicati (o sono gestiti dai can())
   return true;

@@ -39,16 +39,15 @@ function niceStateLabel(state?: StateCode) {
     case States.APPROVATO:
       return "Approvato";
 
-    case States.PRONTO_PER_LA_CONSEGNA:
-      // Nel README questa fase è già rappresentata come "Consegna – in attesa di presa in carico".
+    case States.IN_FINALIZZAZIONE:
+      return "In finalizzazione";
+    case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
       return "Consegna – in attesa di presa in carico";
-    case States.DA_VALIDARE_CONSEGNA:
-      return "Consegna – in attesa di presa in carico";
-    case States.VERIFICHE_CONSEGNA:
+    case States.CONSEGNA_IN_VERIFICA:
       return "Consegna – in verifica";
-    case States.DA_RIVEDERE_VRC:
+    case States.CONSEGNA_DA_CONTROLLARE:
       return "Consegna – da controllare";
-    case States.CONSEGNATO:
+    case States.COMPLETATO:
       return "Completato";
 
     case States.ANNULLATO:
@@ -76,7 +75,7 @@ function toVisibleStatus(state?: StateCode, label?: string): VisibleStatus {
 function variantFromState(state?: StateCode): VisibleStatus["variant"] {
   if (!state) return "secondary";
   if (state === States.BOZZA) return "secondary";
-  if (state === States.CONSEGNATO) return "success";
+  if (state === States.COMPLETATO) return "success";
   if (state === States.APPROVATO) return "success";
   if (state === States.ANNULLATO) return "danger";
 
@@ -84,7 +83,7 @@ function variantFromState(state?: StateCode): VisibleStatus["variant"] {
     state === States.DA_RIVEDERE_BO ||
     state === States.DA_RIVEDERE_BOF ||
     state === States.DA_RIVEDERE_BOU ||
-    state === States.DA_RIVEDERE_VRC
+    state === States.CONSEGNA_DA_CONTROLLARE
   )
     return "danger";
 
@@ -92,8 +91,8 @@ function variantFromState(state?: StateCode): VisibleStatus["variant"] {
     state === States.DA_VALIDARE_BO ||
     state === States.DA_VALIDARE_BOF ||
     state === States.DA_VALIDARE_BOU ||
-    state === States.PRONTO_PER_LA_CONSEGNA ||
-    state === States.DA_VALIDARE_CONSEGNA
+    state === States.IN_FINALIZZAZIONE ||
+    state === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO
   )
     return "warning";
 
@@ -101,7 +100,7 @@ function variantFromState(state?: StateCode): VisibleStatus["variant"] {
     state === States.VERIFICHE_BO ||
     state === States.VERIFICHE_BOF ||
     state === States.VERIFICHE_BOU ||
-    state === States.VERIFICHE_CONSEGNA
+    state === States.CONSEGNA_IN_VERIFICA
   )
     return "warning";
 
@@ -171,11 +170,11 @@ export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
     [
       States.NUOVO,
       States.APPROVATO,
-      States.PRONTO_PER_LA_CONSEGNA,
-      States.DA_VALIDARE_CONSEGNA,
-      States.VERIFICHE_CONSEGNA,
-      States.DA_RIVEDERE_VRC,
-      States.CONSEGNATO,
+      States.IN_FINALIZZAZIONE,
+      States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO,
+      States.CONSEGNA_IN_VERIFICA,
+      States.CONSEGNA_DA_CONTROLLARE,
+      States.COMPLETATO,
       States.ANNULLATO,
     ].includes(overall)
   ) {

@@ -37,14 +37,20 @@ export const States = {
   // Approvazione
   APPROVATO: "S11" as StateCode,
 
-  // Post-approvazione / presa in carico Operatore Consegna
-  /** Fascicolo preso in carico dall'Operatore Consegna (fase operativa iniziale) */
-  PRONTO_PER_LA_CONSEGNA: "S12" as StateCode,
-  /** Inviato a controllo consegna (in attesa di presa in carico) */
-  DA_VALIDARE_CONSEGNA: "S19" as StateCode,
-  VERIFICHE_CONSEGNA: "S13" as StateCode,
-  DA_RIVEDERE_VRC: "S14" as StateCode,
-  CONSEGNATO: "S15" as StateCode,
+  // Post-approvazione / fase finale OC
+  /** Fascicolo preso in carico dall'Operatore Consegna (fase di finalizzazione) */
+  IN_FINALIZZAZIONE: "S12" as StateCode,
+
+  // Consegna (CC)
+  /** Consegna: in attesa di presa in carico da parte del Controllo Consegna */
+  CONSEGNA_IN_ATTESA_PRESA_IN_CARICO: "S19" as StateCode,
+  /** Consegna: in verifica (Controllo Consegna) */
+  CONSEGNA_IN_VERIFICA: "S13" as StateCode,
+  /** Consegna: da controllare (integrazioni richieste all'Operatore Consegna) */
+  CONSEGNA_DA_CONTROLLARE: "S14" as StateCode,
+
+  // Finale
+  COMPLETATO: "S15" as StateCode,
 
   // Finale alternativo
   ANNULLATO: "S20" as StateCode,

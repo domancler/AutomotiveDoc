@@ -13,13 +13,13 @@ function normalizeStato(next: Fascicolo, overall?: StateCode): Fascicolo["stato"
   if (overall === States.ANNULLATO) return "Annullato";
   if (overall === States.NUOVO) return "Nuovo";
   if (overall === States.APPROVATO) return "Approvato";
-  if (overall === States.CONSEGNATO) return "Completato";
+  if (overall === States.COMPLETATO) return "Completato";
 
   // --- Consegna ---
-  if (overall === States.PRONTO_PER_LA_CONSEGNA || overall === States.DA_VALIDARE_CONSEGNA)
+  if (overall === States.IN_FINALIZZAZIONE || overall === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO)
     return "Consegna – in attesa di presa in carico";
-  if (overall === States.VERIFICHE_CONSEGNA) return "Consegna – in verifica";
-  if (overall === States.DA_RIVEDERE_VRC) return "Consegna – da controllare";
+  if (overall === States.CONSEGNA_IN_VERIFICA) return "Consegna – in verifica";
+  if (overall === States.CONSEGNA_DA_CONTROLLARE) return "Consegna – da controllare";
 
   // --- BackOffice (rami paralleli) ---
   if (overall === States.DA_VALIDARE_BO) {
@@ -386,7 +386,7 @@ export function applyWorkflowAction(
     // --- Consegna ---
     case "DELIVERY.TAKE": {
       // da APPROVATO -> preso in carico dall'operatore consegna
-      setOverall(States.PRONTO_PER_LA_CONSEGNA);
+      setOverall(States.IN_FINALIZZAZIONE);
       next = {
         ...next,
         inChargeDelivery: actorId,
@@ -404,10 +404,10 @@ export function applyWorkflowAction(
       // Caso 2: ritorno da integrazioni (DA_RIVEDERE_VRC) => torna direttamente allo stesso VRC in "In verifica"
 
       const returningToSameVrc =
-        (next.workflow?.overall as any) === States.DA_RIVEDERE_VRC && !!next.lastInChargeVRC;
+        (next.workflow?.overall as any) === States.CONSEGNA_DA_CONTROLLARE && !!next.lastInChargeVRC;
 
       if (returningToSameVrc) {
-        setOverall(States.VERIFICHE_CONSEGNA);
+        setOverall(States.CONSEGNA_IN_VERIFICA);
         next = {
           ...next,
           inChargeDelivery: null,
@@ -418,7 +418,7 @@ export function applyWorkflowAction(
         return next;
       }
 
-      setOverall(States.DA_VALIDARE_CONSEGNA);
+      setOverall(States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO);
       next = {
         ...next,
         inChargeDelivery: null,
@@ -430,7 +430,7 @@ export function applyWorkflowAction(
     }
 
     case "VRC.TAKE": {
-      setOverall(States.VERIFICHE_CONSEGNA);
+      setOverall(States.CONSEGNA_IN_VERIFICA);
       next = {
         ...next,
         inChargeVRC: actorId,
@@ -441,7 +441,7 @@ export function applyWorkflowAction(
     }
 
     case "VRC.REQUEST_FIX": {
-      setOverall(States.DA_RIVEDERE_VRC);
+      setOverall(States.CONSEGNA_DA_CONTROLLARE);
       next = {
         ...next,
         inChargeVRC: null,
@@ -454,7 +454,7 @@ export function applyWorkflowAction(
     }
 
     case "VRC.VALIDATE": {
-      setOverall(States.CONSEGNATO);
+      setOverall(States.COMPLETATO);
       next = {
         ...next,
         progress: 100,

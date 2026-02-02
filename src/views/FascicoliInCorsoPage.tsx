@@ -23,13 +23,13 @@ function mapLegacyStatoToState(stato: Fascicolo["stato"]) {
     case "Approvato":
       return States.APPROVATO;
     case "Completato":
-      return States.CONSEGNATO;
+      return States.COMPLETATO;
     case "Consegna – in attesa di presa in carico":
-      return States.DA_VALIDARE_CONSEGNA;
+      return States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO;
     case "Consegna – in verifica":
-      return States.VERIFICHE_CONSEGNA;
+      return States.CONSEGNA_IN_VERIFICA;
     case "Consegna – da controllare":
-      return States.DA_RIVEDERE_VRC;
+      return States.CONSEGNA_DA_CONTROLLARE;
     case "Annullato":
       return States.ANNULLATO;
     case "Da controllare":
@@ -104,9 +104,9 @@ function isInCorsoForUser(f: Fascicolo, user: { id: string; username: string; ro
     case "BOU":
       return ctx.inChargeBOU === user.id && ctx.state === States.VERIFICHE_BOU;
     case "CONSEGNATORE":
-      return ctx.inChargeDelivery === user.id && [States.PRONTO_PER_LA_CONSEGNA, States.DA_RIVEDERE_VRC].includes(ctx.state as any);
+      return ctx.inChargeDelivery === user.id && [States.IN_FINALIZZAZIONE, States.CONSEGNA_DA_CONTROLLARE].includes(ctx.state as any);
     case "VRC":
-      return ctx.inChargeVRC === user.id && ctx.state === States.VERIFICHE_CONSEGNA;
+      return ctx.inChargeVRC === user.id && ctx.state === States.CONSEGNA_IN_VERIFICA;
     default:
       return false;
   }

@@ -43,19 +43,19 @@ function isBackOfficeState(code?: StateCode): boolean {
 function isDeliveryAreaState(code?: StateCode): boolean {
   if (!code) return false;
   return (
-    code === States.PRONTO_PER_LA_CONSEGNA ||
-    code === States.DA_VALIDARE_CONSEGNA ||
-    code === States.VERIFICHE_CONSEGNA ||
-    code === States.DA_RIVEDERE_VRC
+    code === States.IN_FINALIZZAZIONE ||
+    code === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO ||
+    code === States.CONSEGNA_IN_VERIFICA ||
+    code === States.CONSEGNA_DA_CONTROLLARE
   );
 }
 
 function isVrcConsegnaState(code?: StateCode): boolean {
   if (!code) return false;
   return (
-    code === States.DA_VALIDARE_CONSEGNA ||
-    code === States.VERIFICHE_CONSEGNA ||
-    code === States.DA_RIVEDERE_VRC
+    code === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO ||
+    code === States.CONSEGNA_IN_VERIFICA ||
+    code === States.CONSEGNA_DA_CONTROLLARE
   );
 }
 
@@ -73,11 +73,11 @@ function macroLabel(code?: StateCode): string {
   if (code === States.VALIDATO_BO || code === States.VALIDATO_BOF || code === States.VALIDATO_BOU)
     return "Validato";
   if (code === States.APPROVATO) return "Approvato";
-  if (code === States.PRONTO_PER_LA_CONSEGNA || code === States.DA_VALIDARE_CONSEGNA)
+  if (code === States.IN_FINALIZZAZIONE || code === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO)
     return "Consegna – in attesa di presa in carico";
-  if (code === States.VERIFICHE_CONSEGNA) return "Consegna – in verifica";
-  if (code === States.DA_RIVEDERE_VRC) return "Consegna – da controllare";
-  if (code === States.CONSEGNATO) return "Completato";
+  if (code === States.CONSEGNA_IN_VERIFICA) return "Consegna – in verifica";
+  if (code === States.CONSEGNA_DA_CONTROLLARE) return "Consegna – da controllare";
+  if (code === States.COMPLETATO) return "Completato";
   return "Altro";
 }
 
@@ -119,13 +119,13 @@ function boMicroLabel(code?: StateCode): string {
 /** Micro-stati Consegna / controllo consegna */
 function consegnaMicroLabel(code?: StateCode): string {
   switch (code) {
-    case States.PRONTO_PER_LA_CONSEGNA:
+    case States.IN_FINALIZZAZIONE:
       return "Consegna – in attesa di presa in carico";
-    case States.DA_VALIDARE_CONSEGNA:
+    case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
       return "Consegna – in attesa di presa in carico";
-    case States.VERIFICHE_CONSEGNA:
+    case States.CONSEGNA_IN_VERIFICA:
       return "Consegna – in verifica";
-    case States.DA_RIVEDERE_VRC:
+    case States.CONSEGNA_DA_CONTROLLARE:
       return "Consegna – da controllare";
     default:
       return "—";

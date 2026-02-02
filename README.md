@@ -35,22 +35,27 @@ Il ciclo di vita del fascicolo è articolato nei seguenti stati:
    La fase di verifica del singolo ramo di BackOffice è conclusa con esito positivo.
 
 7. **Approvato**  
-   Tutte le verifiche documentali sono state completate.  
-   Il fascicolo è pronto per la fase di consegna.
+   Tutte le verifiche documentali dei rami attivi sono state completate.  
+   Il fascicolo è pronto per la fase finale.
 
-8. **Consegna – in attesa di presa in carico**  
-   Il fascicolo è inoltrato alla fase di consegna ed è in attesa di presa in carico.
+8. **In finalizzazione**  
+   Il fascicolo è preso in carico dall’Operatore Consegna per completare le attività conclusive (caricamento documenti, verifiche operative, predisposizione alla consegna).
 
-9. **Consegna – in verifica**  
-   L’operatore di consegna sta verificando la documentazione necessaria alla consegna del veicolo.
+9. **Consegna – in attesa di presa in carico**  
+   L’Operatore Consegna inoltra il fascicolo alla fase di controllo consegna.  
+   Il fascicolo è in attesa che il Controllo Consegna lo prenda in carico.
 
-10. **Consegna – da controllare**  
-    Sono richieste integrazioni o correzioni nella fase di consegna.
+10. **Consegna – in verifica**  
+    Il Controllo Consegna sta verificando la documentazione e può concludere l’iter oppure richiedere integrazioni.
 
-11. **Completato**  
+11. **Consegna – da controllare**  
+    Il Controllo Consegna richiede integrazioni all’Operatore Consegna.  
+    Dopo gli adeguamenti, l’Operatore Consegna inoltra nuovamente il fascicolo che torna in **Consegna – in verifica**.
+
+12. **Completato**  
     Il processo è concluso con esito positivo e il fascicolo risulta completato.
 
-12. **Annullato**  
+13. **Annullato**  
     Stato finale alternativo che rappresenta la chiusura definitiva del fascicolo con esito negativo.  
     L’annullamento può avvenire in qualsiasi fase operativa, ad eccezione della **Bozza**, qualora emergano condizioni che rendano impossibile o non opportuno il proseguimento del processo.
 
@@ -127,17 +132,19 @@ Quando un fascicolo viene restituito a uno step precedente, torna **sempre allo 
 ---
 
 ### Operatore Consegna
-- Gestisce il fascicolo nella fase di consegna
-- Inserisce e verifica la documentazione necessaria alla consegna
-- Può inoltrare il fascicolo allo stato **Consegna – in verifica**
+- Prende in carico il fascicolo dopo l’approvazione e lo porta nello stato **In finalizzazione**
+- Inserisce e completa la documentazione necessaria alla consegna
+- Con l’azione **Procedi** inoltra il fascicolo al Controllo Consegna nello stato **Consegna – in attesa di presa in carico**
+- In caso di integrazioni richieste dal Controllo Consegna (stato **Consegna – da controllare**), completa gli adeguamenti e reinoltra il fascicolo (ritorno in **Consegna – in verifica**)
 - Può annullare il fascicolo se responsabile nella fase corrente
 
 ---
 
 ### Controllo Consegna
+- Prende in carico il fascicolo nello stato **Consegna – in attesa di presa in carico** e lo porta in **Consegna – in verifica**
 - Effettua le verifiche finali sulla documentazione di consegna
-- Può richiedere integrazioni (stato **Consegna – da controllare**)
-- Conclude il processo portando il fascicolo allo stato **Completato**
+- Se necessita integrazioni dall’Operatore Consegna, con **Procedi** porta il fascicolo in **Consegna – da controllare** e lo restituisce allo stesso Operatore Consegna
+- Se non necessita integrazioni, con **Procedi** conclude il processo portando il fascicolo allo stato **Completato**
 - Può annullare il fascicolo se responsabile nella fase corrente
 
 ---

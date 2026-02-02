@@ -188,15 +188,15 @@ function niceStateLabel(state?: string) {
       return "Validato";
     case States.APPROVATO:
       return "Approvato";
-    case States.PRONTO_PER_LA_CONSEGNA:
+    case States.IN_FINALIZZAZIONE:
       return "Pronto per la consegna";
-    case States.DA_VALIDARE_CONSEGNA:
+    case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
       return "Consegna - in attesa di presa in carico";
-    case States.VERIFICHE_CONSEGNA:
+    case States.CONSEGNA_IN_VERIFICA:
       return "Consegna - in verifica";
-    case States.DA_RIVEDERE_VRC:
+    case States.CONSEGNA_DA_CONTROLLARE:
       return "Consegna - da controllare";
-    case States.CONSEGNATO:
+    case States.COMPLETATO:
       return "Completato";
     case States.ANNULLATO:
       return "Annullato";
@@ -253,14 +253,14 @@ function reasonByState(action: Action, state?: string) {
     case "DELIVERY.TAKE":
       return inState([States.APPROVATO]);
     case "DELIVERY.SEND_TO_VRC":
-      return inState([States.PRONTO_PER_LA_CONSEGNA, States.DA_RIVEDERE_VRC]);
+      return inState([States.IN_FINALIZZAZIONE, States.CONSEGNA_DA_CONTROLLARE]);
 
     // VRC
     case "VRC.TAKE":
-      return inState([States.DA_VALIDARE_CONSEGNA]);
+      return inState([States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO]);
     case "VRC.REQUEST_FIX":
     case "VRC.VALIDATE":
-      return inState([States.VERIFICHE_CONSEGNA]);
+      return inState([States.CONSEGNA_IN_VERIFICA]);
 
     case "FASCICOLO.CANCEL":
       // Sempre disponibile tranne in Bozza

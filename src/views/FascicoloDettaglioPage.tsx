@@ -421,11 +421,11 @@ export function FascicoloDettaglioPage() {
       fascicolo.workflow.overall !== States.BOZZA &&
       fascicolo.workflow.overall !== States.NUOVO &&
       fascicolo.workflow.overall !== States.APPROVATO &&
-      fascicolo.workflow.overall !== States.PRONTO_PER_LA_CONSEGNA &&
-      fascicolo.workflow.overall !== States.DA_VALIDARE_CONSEGNA &&
-      fascicolo.workflow.overall !== States.VERIFICHE_CONSEGNA &&
-      fascicolo.workflow.overall !== States.DA_RIVEDERE_VRC &&
-      fascicolo.workflow.overall !== States.CONSEGNATO
+      fascicolo.workflow.overall !== States.IN_FINALIZZAZIONE &&
+      fascicolo.workflow.overall !== States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO &&
+      fascicolo.workflow.overall !== States.CONSEGNA_IN_VERIFICA &&
+      fascicolo.workflow.overall !== States.CONSEGNA_DA_CONTROLLARE &&
+      fascicolo.workflow.overall !== States.COMPLETATO
   );
 
   return (

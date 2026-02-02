@@ -245,7 +245,7 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
       if (fascicolo?.deliveryDocsComplete === false) return false;
       return (
         inCharge === user.id &&
-        (state === States.PRONTO_PER_LA_CONSEGNA || state === States.DA_RIVEDERE_VRC)
+        (state === States.IN_FINALIZZAZIONE || state === States.CONSEGNA_DA_CONTROLLARE)
       );
     }
 
@@ -257,10 +257,10 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
     const inCharge = fascicolo?.inChargeVRC ?? null;
 
     if (action === "VRC.TAKE") {
-      return state === States.DA_VALIDARE_CONSEGNA && !inCharge && !!fascicolo?.deliverySentToVRC;
+      return state === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO && !inCharge && !!fascicolo?.deliverySentToVRC;
     }
-    if (action === "VRC.VALIDATE") return state === States.VERIFICHE_CONSEGNA && inCharge === user.id;
-    if (action === "VRC.REQUEST_FIX") return state === States.VERIFICHE_CONSEGNA && inCharge === user.id;
+    if (action === "VRC.VALIDATE") return state === States.CONSEGNA_IN_VERIFICA && inCharge === user.id;
+    if (action === "VRC.REQUEST_FIX") return state === States.CONSEGNA_IN_VERIFICA && inCharge === user.id;
 
     return false;
   }
