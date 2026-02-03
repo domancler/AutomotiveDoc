@@ -96,6 +96,20 @@ export function Topbar() {
               >
                 Tutti
               </NavLink>
+
+
+              {user?.role === "ADMIN" && (
+                <NavLink
+                  to="/config"
+                  className={({ isActive }) =>
+                    isActive
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }
+                >
+                  Configurazione
+                </NavLink>
+              )}
             </>
           )}
         </nav>

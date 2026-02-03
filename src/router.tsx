@@ -7,8 +7,10 @@ import { FascicoliTuttiPage } from "@/views/FascicoliTuttiPage";
 import { NotFoundPage } from "@/views/NotFoundPage";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { RequireTakeTabs } from "@/auth/RequireTakeTabs";
+import { RequireAdmin } from "@/auth/RequireAdmin";
 import LoginPage from "@/views/LoginPage";
 import { FascicoloDettaglioPage } from "@/views/FascicoloDettaglioPage";
+import { AdminConfigurazionePage } from "@/views/AdminConfigurazionePage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -21,6 +23,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <Navigate to="/dashboard" replace /> },
       { path: "/dashboard", element: <DashboardPage /> },
+      { path: "/config", element: <RequireAdmin><AdminConfigurazionePage /></RequireAdmin> },
       { path: "/fascicoli/disponibili", element: <RequireTakeTabs><FascicoliDisponibiliPage /></RequireTakeTabs> },
       { path: "/fascicoli/in-corso", element: <RequireTakeTabs><FascicoliInCorsoPage /></RequireTakeTabs> },
       { path: "/fascicoli/tutti", element: <FascicoliTuttiPage /> },

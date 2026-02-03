@@ -22,6 +22,8 @@ import { DocumentPreviewDialog } from "@/ui/components/document-preview-dialog";
 import { can, type FascicoloContext } from "@/auth/can";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
+import { useTipologieStore } from "@/mock/useTipologieStore";
+import type { TipologiaDocumento, TipologiaSezione } from "@/mock/tipologie";
 
 type DocSection = "contratto" | "anagrafica" | "finanziaria" | "permuta" | "consegna";
 
@@ -82,7 +84,8 @@ function docSectionForTipo(tipo: DocumentoTipo): DocSection {
  * Per evitare guerre di tipi, qui trattiamo le tipologie come stringhe UI,
  * e castiamo a DocumentoTipo SOLO quando passiamo al runtime store/mock.
  */
-const DOC_TIPI_BY_SECTION: Record<DocSection, readonly string[]> = {
+// Fallback statico (seed) usato solo se per qualche motivo lo store tipologie non è disponibile.
+const DEFAULT_DOC_TIPI_BY_SECTION: Record<DocSection, readonly string[]> = {
   contratto: ["Contratto di vendita", "Proposta d'acquisto", "Modulo ordine", "Condizioni generali di vendita"],
   anagrafica: [
     "Documento identità",
@@ -96,6 +99,23 @@ const DOC_TIPI_BY_SECTION: Record<DocSection, readonly string[]> = {
   permuta: ["Libretto permuta", "Certificato proprietà (CDP)", "Atto di vendita usato", "Perizia permuta", "Foto permuta"],
   consegna: ["Verbale consegna", "Check-list preconsegna", "Liberatoria consegna", "Assicurazione consegna"],
 } as const;
+
+const DOC_SECTIONS: DocSection[] = ["contratto", "anagrafica", "finanziaria", "permuta", "consegna"];
+
+function docSectionFromSezione(sezione: TipologiaSezione): DocSection {
+  switch (sezione) {
+    case "CONTRATTO":
+      return "contratto";
+    case "ANAGRAFICA":
+      return "anagrafica";
+    case "FINANZIARIA":
+      return "finanziaria";
+    case "PERMUTA":
+      return "permuta";
+    case "CONSEGNA":
+      return "consegna";
+  }
+}
 
 function allowedDocSectionsForRole(role?: Role): DocSection[] {
   if (!role) return [];
@@ -165,8 +185,10 @@ function TipologiePicker(props: {
   allowedTipi: string[];
   /** Quando true mostra i gruppi per sezione */
   showGroups?: boolean;
+  /** Mappa tipologie per sezione (serve per raggruppare / nascondere disattivate) */
+  tipiBySection?: Record<DocSection, readonly string[]>;
 }) {
-  const { value, onChange, disabled, allowedTipi, showGroups } = props;
+  const { value, onChange, disabled, allowedTipi, showGroups, tipiBySection } = props;
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -189,8 +211,10 @@ function TipologiePicker(props: {
   const normQ = q.trim().toLowerCase();
   const match = (s: string) => (normQ ? s.toLowerCase().includes(normQ) : true);
 
-  const grouped = (Object.keys(DOC_TIPI_BY_SECTION) as DocSection[]).map((sec) => {
-    const items = DOC_TIPI_BY_SECTION[sec].filter((t) => allowedTipi.includes(t)).filter((t) => match(t));
+  const bySection = tipiBySection ?? DEFAULT_DOC_TIPI_BY_SECTION;
+
+  const grouped = (Object.keys(bySection) as DocSection[]).map((sec) => {
+    const items = bySection[sec].filter((t) => allowedTipi.includes(t)).filter((t) => match(t));
     return { sec, items };
   });
 
@@ -289,6 +313,9 @@ export function FascicoloDettaglioPage() {
   const fascicolo = useFascicolo(fascicoloId);
   const { user } = useAuth();
   const isCommercial = user?.role === "COMMERCIALE";
+
+  // Tipologie runtime configurabili dall'admin (in-memory)
+  const tipologie = useTipologieStore();
 
   const [tab, setTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
@@ -407,16 +434,53 @@ export function FascicoloDettaglioPage() {
       return base;
     }, [user?.role, fascicolo]);
 
+  // Index tipologie per nome -> meta (sezione, attivo, ordine)
+  const tipologiaByNome = useMemo(() => {
+    const m = new Map<string, TipologiaDocumento>();
+    for (const t of tipologie) m.set(String(t.nome), t);
+    return m;
+  }, [tipologie]);
+
+  // Tipologie attive per sezione (usate nei picker: le disattivate devono essere nascoste)
+  const tipiBySectionActive = useMemo(() => {
+    const by: Record<DocSection, string[]> = {
+      contratto: [],
+      anagrafica: [],
+      finanziaria: [],
+      permuta: [],
+      consegna: [],
+    };
+
+    const sorted = [...tipologie].sort((a, b) => (a.sezione === b.sezione ? a.ordine - b.ordine : a.sezione.localeCompare(b.sezione)));
+    for (const t of sorted) {
+      if (!t.attivo) continue;
+      const sec = docSectionFromSezione(t.sezione);
+      by[sec].push(String(t.nome));
+    }
+
+    // fallback seed se lo store è vuoto per qualche motivo
+    const hasAny = DOC_SECTIONS.some((s) => by[s].length > 0);
+    if (!hasAny) {
+      for (const s of DOC_SECTIONS) by[s] = [...DEFAULT_DOC_TIPI_BY_SECTION[s]];
+    }
+    return by;
+  }, [tipologie]);
+
+  const docSectionForTipoRuntime = (tipo: DocumentoTipo): DocSection => {
+    const meta = tipologiaByNome.get(String(tipo));
+    if (meta) return docSectionFromSezione(meta.sezione);
+    return docSectionForTipo(tipo);
+  };
+
   const allowedTipi = useMemo(() => {
     const all = (allowedSections ?? []).reduce<string[]>((acc, s) => {
-      const arr = DOC_TIPI_BY_SECTION[s] ?? [];
-      // arr è readonly string[]: lo spalmiamo in acc
+      const arr = tipiBySectionActive[s] ?? [];
       acc.push(...arr);
       return acc;
     }, []);
 
     return Array.from(new Set(all));
-  }, [allowedSections]);
+  }, [allowedSections, tipiBySectionActive]);
 
   useEffect(() => {
     if (allowedTipi.length === 0) return;
@@ -447,11 +511,12 @@ export function FascicoloDettaglioPage() {
       consegna: [],
     };
     for (const d of docsRows) {
-      const sec = docSectionForTipo(d.tipo);
+      const meta = tipologiaByNome.get(String(d.tipo));
+      const sec = meta ? docSectionFromSezione(meta.sezione) : docSectionForTipo(d.tipo);
       by[sec].push(d);
     }
     return by;
-  }, [docsRows]);
+  }, [docsRows, tipologiaByNome]);
 
   useEffect(() => {
     const last = Math.max(0, docsTotalPages - 1);
@@ -557,14 +622,12 @@ export function FascicoloDettaglioPage() {
           <div className="text-sm text-muted-foreground">{fascicolo.progress}% completamento</div>
         </CardContent>
       </Card>
-
       {showActionsSection && (
         <div className="space-y-3">
           <div className="text-lg font-semibold">Azioni</div>
           <FascicoloActionsTab fascicolo={fascicolo} />
         </div>
       )}
-
       <div className="pt-2">
         <div className="text-lg font-semibold">Sezioni</div>
       </div>
@@ -717,6 +780,7 @@ export function FascicoloDettaglioPage() {
                       value={docTipo}
                       onChange={(v) => setDocTipo(v)}
                       allowedTipi={allowedTipi}
+                      tipiBySection={tipiBySectionActive}
                       showGroups={user?.role === "COMMERCIALE"}
                       disabled={readOnly || isCommInReview || allowedTipi.length === 0}
                     />
@@ -769,7 +833,7 @@ export function FascicoloDettaglioPage() {
               </div>
 
               <div className="space-y-3">
-                {(Object.keys(DOC_TIPI_BY_SECTION) as DocSection[]).map((sec) => {
+                {DOC_SECTIONS.map((sec) => {
                   const rows = docsBySection[sec];
                   if (!rows || rows.length === 0) return null;
 
@@ -806,7 +870,18 @@ export function FascicoloDettaglioPage() {
                           <tbody>
                           {rows.map((d) => (
                             <tr key={d.id} className="border-t">
-                              <td className="px-4 py-3 font-medium">{d.tipo}</td>
+                              <td className="px-4 py-3 font-medium">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span>{d.tipo}</span>
+                                  {(() => {
+                                    const meta = tipologiaByNome.get(String(d.tipo));
+                                    if (meta && !meta.attivo) {
+                                      return <Badge variant="outline" className="text-xs">Disattivata</Badge>;
+                                    }
+                                    return null;
+                                  })()}
+                                </div>
+                              </td>
                               <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
                               <td className="px-4 py-3">
                                   <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
