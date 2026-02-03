@@ -18,6 +18,7 @@ import { States } from "@/workflow/states";
 import type { DocumentoTipo } from "@/mock/fascicoli";
 import { addDocumentoRow, markDocumentoAssente, markDocumentoPresente, removeDocumentoRow } from "@/mock/runtimeFascicoliStore";
 import { ConfirmDialog } from "@/ui/components/confirm-dialog";
+import { DocumentPreviewDialog } from "@/ui/components/document-preview-dialog";
 import { can, type FascicoloContext } from "@/auth/can";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
@@ -298,6 +299,11 @@ export function FascicoloDettaglioPage() {
   const [docNote, setDocNote] = useState("");
   const [docsPage, setDocsPage] = useState(0);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; label: string } | null>(null);
+  const [preview, setPreview] = useState<{ open: boolean; url: string; title?: string }>({
+    open: false,
+    url: "",
+    title: undefined,
+  });
 
   // Regola di dominio: le tipologie inserite dai BackOffice sono sempre "richieste".
   // Per evitare casi ambigui (tipologia senza documento ma non "richiesta"), lasciamo il toggle
@@ -810,6 +816,17 @@ export function FascicoloDettaglioPage() {
                                       const canDeleteTipologia = canEditSection && !(user?.role === "COMMERCIALE" && isCommInReview);
                                       return (
                                         <>
+                                          {d.presente && d.fileUrl && (
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() =>
+                                                setPreview({ open: true, url: d.fileUrl!, title: d.tipo })
+                                              }
+                                            >
+                                              <Search className="h-4 w-4" /> Preview
+                                            </Button>
+                                          )}
                                           <Button
                                             variant="outline"
                                             size="sm"
@@ -865,6 +882,13 @@ export function FascicoloDettaglioPage() {
                   removeDocumentoRow(fascicoloId, removeTarget.id);
                   setRemoveTarget(null);
                 }}
+              />
+
+              <DocumentPreviewDialog
+                open={preview.open}
+                title={preview.title}
+                fileUrl={preview.url}
+                onOpenChange={(o) => setPreview((p) => ({ ...p, open: o }))}
               />
             </CardContent>
           </Card>

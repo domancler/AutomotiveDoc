@@ -61,6 +61,11 @@ export type Documento = {
   tipo: DocumentoTipo;
   richiesto: boolean;
   presente: boolean;
+  /**
+   * URL del file caricato (mock/static).
+   * In produzione sarebbe un link firmato o un endpoint di download.
+   */
+  fileUrl?: string;
   /** Note operative (es: "cointestatario") - scrivibile solo alla creazione */
   note?: string;
   updatedAt: string; // ISO
@@ -153,9 +158,10 @@ function mkDoc(
   richiesto: boolean,
   presente: boolean,
   daysAgo: number,
-  note?: string
+  note?: string,
+  fileUrl?: string
 ): Documento {
-  return { id, tipo, richiesto, presente, note, updatedAt: isoDaysAgo(daysAgo) };
+  return { id, tipo, richiesto, presente, fileUrl, note, updatedAt: isoDaysAgo(daysAgo) };
 }
 
 // IDs/Nomi allineati a src/auth/auth.ts (DEMO_USERS)

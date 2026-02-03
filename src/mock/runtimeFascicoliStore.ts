@@ -74,6 +74,7 @@ export function addDocumentoRow(
       tipo: payload.tipo,
       richiesto: payload.richiesto,
       presente: false,
+      fileUrl: undefined,
       note: payload.note,
       updatedAt: now,
     };
@@ -93,7 +94,16 @@ export function markDocumentoPresente(fascicoloId: string, documentoId: string) 
   updateFascicoloById(fascicoloId, (f) => ({
     ...f,
     documenti: f.documenti.map((d) =>
-      d.id === documentoId ? { ...d, presente: true, updatedAt: now } : d
+      d.id === documentoId
+        ? {
+            ...d,
+            presente: true,
+            // Mock: inseriamo un file statico (public/) per la preview.
+            // In futuro verrà sostituito dall'URL reale del file caricato.
+            fileUrl: d.fileUrl ?? sampleFileUrlForTipo(d.tipo),
+            updatedAt: now,
+          }
+        : d
     ),
   }));
 }
@@ -103,7 +113,14 @@ export function markDocumentoAssente(fascicoloId: string, documentoId: string) {
   updateFascicoloById(fascicoloId, (f) => ({
     ...f,
     documenti: f.documenti.map((d) =>
-      d.id === documentoId ? { ...d, presente: false, updatedAt: now } : d
+      d.id === documentoId ? { ...d, presente: false, fileUrl: undefined, updatedAt: now } : d
     ),
   }));
+}
+
+function sampleFileUrlForTipo(tipo: DocumentoTipo): string {
+  // Esempio: alcune tipologie (es. Foto permuta) rendono meglio come immagine.
+  if (tipo === "Foto permuta") return "/sample/foto-permuta.jpg";
+  // Default: PDF "generico".
+  return "/sample/documento-sample.pdf";
 }
