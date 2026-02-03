@@ -322,7 +322,6 @@ export function FascicoloDettaglioPage() {
 
   // --- Documenti: aggiunta tipologie + paginazione ---
   const [docTipo, setDocTipo] = useState<string>("Documento identità");
-  const [docRichiesto, setDocRichiesto] = useState(true);
   const [docNote, setDocNote] = useState("");
   const [docsPage, setDocsPage] = useState(0);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; label: string } | null>(null);
@@ -331,13 +330,6 @@ export function FascicoloDettaglioPage() {
     url: "",
     title: undefined,
   });
-
-  // Regola di dominio: le tipologie inserite dai BackOffice sono sempre "richieste".
-  // Per evitare casi ambigui (tipologia senza documento ma non "richiesta"), lasciamo il toggle
-  // configurabile solo per il venditore.
-  useEffect(() => {
-    if (!isCommercial) setDocRichiesto(true);
-  }, [isCommercial]);
 
   const ctx: FascicoloContext = useMemo(() => {
     const anyF: any = fascicolo;
@@ -377,14 +369,6 @@ export function FascicoloDettaglioPage() {
     };
   }, [fascicolo, user?.role]);
 
-  // Regola di dominio (venditore <-> BO):
-  // - Il flag "Richiesto" ha senso solo per il venditore.
-  // - Le tipologie inserite dai BackOffice sono SEMPRE richieste.
-  // Evita quindi che un BO inserisca una tipologia "non richiesta" e poi possa validare senza allegati.
-  useEffect(() => {
-    if (!isCommercial) setDocRichiesto(true);
-  }, [isCommercial]);
-
   const allowed = useMemo(() => {
     return (action: Action) => (user ? can(user as any, action, ctx) : false);
   }, [user, ctx]);
@@ -415,15 +399,26 @@ export function FascicoloDettaglioPage() {
 
   const docStats = useMemo(() => {
     if (!fascicolo) return { required: 0, present: 0 };
-    const required = fascicolo.documenti.filter((d) => d.richiesto).length;
-    const present = fascicolo.documenti.filter((d) => d.presente).length;
-    return { required, present };
-  }, [fascicolo]);
 
-    const allowedSections = useMemo(() => {
-      const role = user?.role as Role | undefined;
-      if (!role) return [];
-      const base = allowedDocSectionsForRole(role);
+    const required = fascicolo.documenti.filter((d) => {
+      const meta = tipologie.find((t) => String(t.nome) === String(d.tipo));
+      return meta ? meta.obbligatorio : d.richiesto;
+    }).length;
+
+    // "presenti" riferito ai documenti richiesti (coerente con l'etichetta in UI)
+    const present = fascicolo.documenti.filter((d) => {
+      const meta = tipologie.find((t) => String(t.nome) === String(d.tipo));
+      const isReq = meta ? meta.obbligatorio : d.richiesto;
+      return isReq && d.presente;
+    }).length;
+
+    return { required, present };
+  }, [fascicolo, tipologie]);
+
+  const allowedSections = useMemo(() => {
+    const role = user?.role as Role | undefined;
+    if (!role) return [];
+    const base = allowedDocSectionsForRole(role);
 
       // Venditore: in fase "Da controllare" può operare SOLO sulle sezioni richieste dai BO (rami in DA_RIVEDERE_*).
       if (role === "COMMERCIALE" && fascicolo?.workflow?.overall === States.DA_VALIDARE_BO) {
@@ -431,8 +426,8 @@ export function FascicoloDettaglioPage() {
         if (review.length > 0) return base.filter((s) => review.includes(s));
       }
 
-      return base;
-    }, [user?.role, fascicolo]);
+    return base;
+  }, [user?.role, fascicolo]);
 
   // Index tipologie per nome -> meta (sezione, attivo, ordine)
   const tipologiaByNome = useMemo(() => {
@@ -773,7 +768,7 @@ export function FascicoloDettaglioPage() {
               )}
 
               <div className="rounded-lg border p-3">
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-3">
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">Tipologia</div>
                     <TipologiePicker
@@ -792,34 +787,15 @@ export function FascicoloDettaglioPage() {
                     <Input value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="Es: cointestatario" disabled={readOnly || isCommInReview} />
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">Richiesto</div>
-                    <div className="flex h-9 items-center">
-                      <label className="inline-flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={docRichiesto}
-                          onChange={(e) => setDocRichiesto(e.target.checked)}
-                          className="peer sr-only"
-                          disabled={readOnly || !isCommercial}
-                        />
-                        <span className="relative inline-flex h-6 w-11 items-center rounded-full border bg-muted transition-colors peer-checked:bg-foreground/80">
-                          <span className="inline-block h-5 w-5 translate-x-1 rounded-full bg-background shadow transition peer-checked:translate-x-5" />
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {isCommercial ? (docRichiesto ? "Sì" : "No") : "Sempre"}
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
                   <div className="flex items-end justify-end">
                     <Button
                       onClick={() => {
+                        const meta = tipologiaByNome.get(String(docTipo));
                         addDocumentoRow(fascicoloId, {
                           tipo: docTipo as DocumentoTipo,
-                          // Venditore può marcare tipologie facoltative. BackOffice: sempre richieste.
-                          richiesto: isCommercial ? docRichiesto : true,
+                          // Il requisito "Richiesto" è configurato dall'admin a livello di tipologia.
+                          // Se per qualche motivo la meta non esiste (fallback), consideriamo la tipologia richiesta.
+                          richiesto: meta ? meta.obbligatorio : true,
                           note: docNote.trim() ? docNote.trim() : undefined,
                         });
                         setDocNote("");
@@ -839,8 +815,12 @@ export function FascicoloDettaglioPage() {
 
                   const canEditSection = !readOnly && allowedSections.indexOf(sec) !== -1;
                   const defaultOpen = user?.role === "COMMERCIALE" ? true : allowedSections.indexOf(sec) !== -1;
-                  const required = rows.filter((r) => r.richiesto).length;
-                  const present = rows.filter((r) => r.presente).length;
+                  const isRequired = (r: (typeof rows)[number]) => {
+                    const meta = tipologiaByNome.get(String(r.tipo));
+                    return meta ? meta.obbligatorio : r.richiesto;
+                  };
+                  const required = rows.filter((r) => isRequired(r)).length;
+                  const present = rows.filter((r) => isRequired(r) && r.presente).length;
 
                   return (
                     <details key={sec} className="overflow-hidden rounded-lg border" defaultOpen={defaultOpen}>
@@ -882,7 +862,11 @@ export function FascicoloDettaglioPage() {
                                   })()}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
+                              <td className="px-4 py-3">{(() => {
+                                const meta = tipologiaByNome.get(String(d.tipo));
+                                const req = meta ? meta.obbligatorio : d.richiesto;
+                                return req ? "Sì" : "No";
+                              })()}</td>
                               <td className="px-4 py-3">
                                   <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
                                     {d.presente ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
