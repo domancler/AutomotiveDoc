@@ -377,6 +377,10 @@ export function FascicoloDettaglioPage() {
 
   const readOnly = !canOperate;
 
+  // L'admin nel progetto è un ruolo “gestionale” (non operativo sui fascicoli):
+  // nel dettaglio quindi nascondiamo la sezione Azioni per evitare pulsanti inutili/confusione.
+  const showActionsSection = user?.role !== "ADMIN";
+
   const isCommInReview =
     user?.role === "COMMERCIALE" &&
     (ctx.state === States.DA_RIVEDERE_BO || ctx.state === States.DA_RIVEDERE_BOF || ctx.state === States.DA_RIVEDERE_BOU);
@@ -554,10 +558,12 @@ export function FascicoloDettaglioPage() {
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
-        <div className="text-lg font-semibold">Azioni</div>
-        <FascicoloActionsTab fascicolo={fascicolo} />
-      </div>
+      {showActionsSection && (
+        <div className="space-y-3">
+          <div className="text-lg font-semibold">Azioni</div>
+          <FascicoloActionsTab fascicolo={fascicolo} />
+        </div>
+      )}
 
       <div className="pt-2">
         <div className="text-lg font-semibold">Sezioni</div>
