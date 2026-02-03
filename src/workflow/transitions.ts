@@ -210,11 +210,22 @@ export function applyWorkflowAction(
       const bof = next.workflow?.bof as any;
       const bou = next.workflow?.bou as any;
 
+      // Regola importante: i micro-rami sono INDIPENDENTI.
+      // Quando il venditore fa "Procedi":
+      // - se un ramo era in "da controllare", torna in "in verifica" (senza nuova presa in carico)
+      // - se un ramo è già "in verifica" o "validato", NON deve essere resettato a "in attesa"
+      // - solo i rami che non sono mai stati presi/avanzati entrano in "in attesa di presa in carico".
+
       // BO (sempre attivo)
       if (bo === States.DA_RIVEDERE_BO && next.lastInChargeBO) {
+        // rientro da integrazione -> torna direttamente in verifica
         setBranch("bo", States.VERIFICHE_BO);
         next = { ...next, inChargeBO: next.lastInChargeBO };
+      } else if (bo === States.VERIFICHE_BO || bo === States.VALIDATO_BO || bo === States.DA_VALIDARE_BO) {
+        // già in corso o già validato: lascia invariato
+        // (inChargeBO resta com'è; per VALIDATO tipicamente è null)
       } else {
+        // primo invio ai BO
         setBranch("bo", States.DA_VALIDARE_BO);
         next = { ...next, inChargeBO: null };
       }
@@ -224,6 +235,8 @@ export function applyWorkflowAction(
         if (bof === States.DA_RIVEDERE_BOF && next.lastInChargeBOF) {
           setBranch("bof", States.VERIFICHE_BOF);
           next = { ...next, inChargeBOF: next.lastInChargeBOF };
+        } else if (bof === States.VERIFICHE_BOF || bof === States.VALIDATO_BOF || bof === States.DA_VALIDARE_BOF) {
+          // già in corso/validato/in attesa: non toccare
         } else {
           setBranch("bof", States.DA_VALIDARE_BOF);
           next = { ...next, inChargeBOF: null };
@@ -237,6 +250,8 @@ export function applyWorkflowAction(
         if (bou === States.DA_RIVEDERE_BOU && next.lastInChargeBOU) {
           setBranch("bou", States.VERIFICHE_BOU);
           next = { ...next, inChargeBOU: next.lastInChargeBOU };
+        } else if (bou === States.VERIFICHE_BOU || bou === States.VALIDATO_BOU || bou === States.DA_VALIDARE_BOU) {
+          // già in corso/validato/in attesa: non toccare
         } else {
           setBranch("bou", States.DA_VALIDARE_BOU);
           next = { ...next, inChargeBOU: null };

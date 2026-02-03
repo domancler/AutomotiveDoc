@@ -48,26 +48,51 @@ type DocSection = "contratto" | "anagrafica" | "finanziaria" | "permuta" | "cons
 
 function docSectionForTipo(tipo: string): DocSection {
   switch (tipo) {
+    // Contratto
     case "Contratto di vendita":
+    case "Proposta d'acquisto":
+    case "Modulo ordine":
+    case "Condizioni generali di vendita":
       return "contratto";
+
+    // Anagrafica
+    case "Documento identità":
+    case "Codice fiscale / Tessera sanitaria":
+    case "Patente":
+    case "Dichiarazione residenza":
     case "Privacy":
     case "Consenso marketing":
-    case "Documento identità":
-    case "Patente":
       return "anagrafica";
+
+    // Finanziaria
+    case "Richiesta finanziamento":
+    case "Delibera finanziaria":
+    case "Busta paga / Redditi":
+    case "IBAN / Mandato SEPA":
     case "Prova pagamento":
       return "finanziaria";
+
+    // Permuta
     case "Libretto permuta":
+    case "Certificato proprietà (CDP)":
+    case "Atto di vendita usato":
+    case "Perizia permuta":
     case "Foto permuta":
       return "permuta";
+
+    // Consegna
     case "Verbale consegna":
+    case "Check-list preconsegna":
+    case "Liberatoria consegna":
     case "Assicurazione consegna":
       return "consegna";
+
     default:
       // future-proof: se arriva una tipologia nuova, considerala "contratto" (neutro)
       return "contratto";
   }
 }
+
 
 function sectionsForRole(role?: Role): DocSection[] {
   if (!role) return [];

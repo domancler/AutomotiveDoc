@@ -16,7 +16,7 @@ import { statoVariant } from "@/ui/fascicoli/status";
 import { colorForStatoLabel } from "@/ui/fascicoli/statusColors";
 import { States } from "@/workflow/states";
 import type { DocumentoTipo } from "@/mock/fascicoli";
-import { addDocumentoRow, markDocumentoPresente, removeDocumentoRow } from "@/mock/runtimeFascicoliStore";
+import { addDocumentoRow, markDocumentoAssente, markDocumentoPresente, removeDocumentoRow } from "@/mock/runtimeFascicoliStore";
 import { ConfirmDialog } from "@/ui/components/confirm-dialog";
 import { can, type FascicoloContext } from "@/auth/can";
 import type { Action } from "@/auth/actions";
@@ -105,6 +105,18 @@ function allowedDocSectionsForRole(role?: Role): DocSection[] {
   if (role === "BOU") return ["permuta"];
   if (role === "CONSEGNATORE" || role === "VRC") return ["consegna"];
   return [];
+}
+
+function reviewSectionsForCommerciale(f: any): DocSection[] {
+  // In fase di integrazione, il venditore può operare SOLO sui rami che sono in "Da controllare".
+  const bo = f.workflow?.bo;
+  const bof = f.workflow?.bof;
+  const bou = f.workflow?.bou;
+  const sections: DocSection[] = [];
+  if (bo === States.DA_RIVEDERE_BO) sections.push("contratto", "anagrafica");
+  if (bof === States.DA_RIVEDERE_BOF) sections.push("finanziaria");
+  if (bou === States.DA_RIVEDERE_BOU) sections.push("permuta");
+  return Array.from(new Set(sections));
 }
 
 function formatDateIT(iso: string) {
@@ -275,6 +287,7 @@ export function FascicoloDettaglioPage() {
   const fascicoloId = id ?? "";
   const fascicolo = useFascicolo(fascicoloId);
   const { user } = useAuth();
+  const isCommercial = user?.role === "COMMERCIALE";
 
   const [tab, setTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
@@ -285,6 +298,13 @@ export function FascicoloDettaglioPage() {
   const [docNote, setDocNote] = useState("");
   const [docsPage, setDocsPage] = useState(0);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; label: string } | null>(null);
+
+  // Regola di dominio: le tipologie inserite dai BackOffice sono sempre "richieste".
+  // Per evitare casi ambigui (tipologia senza documento ma non "richiesta"), lasciamo il toggle
+  // configurabile solo per il venditore.
+  useEffect(() => {
+    if (!isCommercial) setDocRichiesto(true);
+  }, [isCommercial]);
 
   const ctx: FascicoloContext = useMemo(() => {
     const anyF: any = fascicolo;
@@ -324,6 +344,14 @@ export function FascicoloDettaglioPage() {
     };
   }, [fascicolo, user?.role]);
 
+  // Regola di dominio (venditore <-> BO):
+  // - Il flag "Richiesto" ha senso solo per il venditore.
+  // - Le tipologie inserite dai BackOffice sono SEMPRE richieste.
+  // Evita quindi che un BO inserisca una tipologia "non richiesta" e poi possa validare senza allegati.
+  useEffect(() => {
+    if (!isCommercial) setDocRichiesto(true);
+  }, [isCommercial]);
+
   const allowed = useMemo(() => {
     return (action: Action) => (user ? can(user as any, action, ctx) : false);
   }, [user, ctx]);
@@ -343,6 +371,11 @@ export function FascicoloDettaglioPage() {
 
   const readOnly = !canOperate;
 
+  const isCommInReview =
+    user?.role === "COMMERCIALE" &&
+    (ctx.state === States.DA_RIVEDERE_BO || ctx.state === States.DA_RIVEDERE_BOF || ctx.state === States.DA_RIVEDERE_BOU);
+
+
   const docStats = useMemo(() => {
     if (!fascicolo) return { required: 0, present: 0 };
     const required = fascicolo.documenti.filter((d) => d.richiesto).length;
@@ -350,10 +383,28 @@ export function FascicoloDettaglioPage() {
     return { required, present };
   }, [fascicolo]);
 
-  const allowedSections = useMemo(() => allowedDocSectionsForRole(user?.role as Role | undefined), [user?.role]);
+    const allowedSections = useMemo(() => {
+      const role = user?.role as Role | undefined;
+      if (!role) return [];
+      const base = allowedDocSectionsForRole(role);
+
+      // Venditore: in fase "Da controllare" può operare SOLO sulle sezioni richieste dai BO (rami in DA_RIVEDERE_*).
+      if (role === "COMMERCIALE" && fascicolo?.workflow?.overall === States.DA_VALIDARE_BO) {
+        const review = reviewSectionsForCommerciale(fascicolo as any);
+        if (review.length > 0) return base.filter((s) => review.includes(s));
+      }
+
+      return base;
+    }, [user?.role, fascicolo]);
 
   const allowedTipi = useMemo(() => {
-    const all = allowedSections.flatMap((s) => DOC_TIPI_BY_SECTION[s] ?? []);
+    const all = (allowedSections ?? []).reduce<string[]>((acc, s) => {
+      const arr = DOC_TIPI_BY_SECTION[s] ?? [];
+      // arr è readonly string[]: lo spalmiamo in acc
+      acc.push(...arr);
+      return acc;
+    }, []);
+
     return Array.from(new Set(all));
   }, [allowedSections]);
 
@@ -642,7 +693,7 @@ export function FascicoloDettaglioPage() {
             <CardContent className="space-y-3">
               {readOnly && (
                 <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                  Solo lettura: prendi in carico il fascicolo per aggiungere/rimuovere tipologie e caricare documenti.
+                  Solo lettura: prendi in carico il fascicolo per operare sui documenti.
                 </div>
               )}
 
@@ -655,14 +706,14 @@ export function FascicoloDettaglioPage() {
                       onChange={(v) => setDocTipo(v)}
                       allowedTipi={allowedTipi}
                       showGroups={user?.role === "COMMERCIALE"}
-                      disabled={readOnly || allowedTipi.length === 0}
+                      disabled={readOnly || isCommInReview || allowedTipi.length === 0}
                     />
                     {allowedTipi.length === 0 && <div className="mt-1 text-xs text-muted-foreground">Nessuna tipologia disponibile</div>}
                   </div>
 
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">Note (opzionale)</div>
-                    <Input value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="Es: cointestatario" disabled={readOnly} />
+                    <Input value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="Es: cointestatario" disabled={readOnly || isCommInReview} />
                   </div>
 
                   <div className="space-y-1">
@@ -674,12 +725,14 @@ export function FascicoloDettaglioPage() {
                           checked={docRichiesto}
                           onChange={(e) => setDocRichiesto(e.target.checked)}
                           className="peer sr-only"
-                          disabled={readOnly}
+                          disabled={readOnly || !isCommercial}
                         />
                         <span className="relative inline-flex h-6 w-11 items-center rounded-full border bg-muted transition-colors peer-checked:bg-foreground/80">
                           <span className="inline-block h-5 w-5 translate-x-1 rounded-full bg-background shadow transition peer-checked:translate-x-5" />
                         </span>
-                        <span className="text-sm text-muted-foreground">{docRichiesto ? "Sì" : "No"}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {isCommercial ? (docRichiesto ? "Sì" : "No") : "Sempre"}
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -689,12 +742,13 @@ export function FascicoloDettaglioPage() {
                       onClick={() => {
                         addDocumentoRow(fascicoloId, {
                           tipo: docTipo as DocumentoTipo,
-                          richiesto: docRichiesto,
+                          // Venditore può marcare tipologie facoltative. BackOffice: sempre richieste.
+                          richiesto: isCommercial ? docRichiesto : true,
                           note: docNote.trim() ? docNote.trim() : undefined,
                         });
                         setDocNote("");
                       }}
-                      disabled={readOnly || allowedTipi.length === 0}
+                      disabled={readOnly || isCommInReview || allowedTipi.length === 0}
                     >
                       Aggiungi tipologia
                     </Button>
@@ -707,8 +761,8 @@ export function FascicoloDettaglioPage() {
                   const rows = docsBySection[sec];
                   if (!rows || rows.length === 0) return null;
 
-                  const canEditSection = !readOnly && allowedSections.includes(sec);
-                  const defaultOpen = user?.role === "COMMERCIALE" ? true : allowedSections.includes(sec);
+                  const canEditSection = !readOnly && allowedSections.indexOf(sec) !== -1;
+                  const defaultOpen = user?.role === "COMMERCIALE" ? true : allowedSections.indexOf(sec) !== -1;
                   const required = rows.filter((r) => r.richiesto).length;
                   const present = rows.filter((r) => r.presente).length;
 
@@ -752,23 +806,41 @@ export function FascicoloDettaglioPage() {
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="text-muted-foreground">{d.note?.trim() ? d.note : "—"}</div>
                                   <div className="flex flex-wrap items-center justify-end gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => markDocumentoPresente(fascicoloId, d.id)}
-                                      disabled={!canEditSection || d.presente}
-                                    >
-                                      <FileUp className="h-4 w-4" /> Carica
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
-                                      disabled={!canEditSection}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
+                                    {(() => {
+                                      const canDeleteTipologia = canEditSection && !(user?.role === "COMMERCIALE" && isCommInReview);
+                                      return (
+                                        <>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => markDocumentoPresente(fascicoloId, d.id)}
+                                            disabled={!canEditSection || d.presente}
+                                          >
+                                            <FileUp className="h-4 w-4" /> Carica
+                                          </Button>
+
+                                          {canDeleteTipologia ? (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => setRemoveTarget({ id: d.id, label: d.tipo })}
+                                              disabled={!canEditSection}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          ) : (
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => markDocumentoAssente(fascicoloId, d.id)}
+                                              disabled={!canEditSection || !d.presente}
+                                            >
+                                              <Trash2 className="h-4 w-4" /> Rimuovi
+                                            </Button>
+                                          )}
+                                        </>
+                                      );
+                                    })()}</div>
                                 </div>
                               </td>
                             </tr>

@@ -97,3 +97,13 @@ export function markDocumentoPresente(fascicoloId: string, documentoId: string) 
     ),
   }));
 }
+
+export function markDocumentoAssente(fascicoloId: string, documentoId: string) {
+  const now = new Date().toISOString();
+  updateFascicoloById(fascicoloId, (f) => ({
+    ...f,
+    documenti: f.documenti.map((d) =>
+      d.id === documentoId ? { ...d, presente: false, updatedAt: now } : d
+    ),
+  }));
+}

@@ -25,18 +25,36 @@ export type FascicoloWorkflow = {
 };
 
 export type DocumentoTipo =
+  // Contratto
   | "Contratto di vendita"
+  | "Proposta d'acquisto"
+  | "Modulo ordine"
+  | "Condizioni generali di vendita"
+  // Anagrafica
+  | "Documento identità"
+  | "Codice fiscale / Tessera sanitaria"
+  | "Patente"
+  | "Dichiarazione residenza"
   | "Privacy"
   | "Consenso marketing"
-  | "Documento identità"
-  | "Patente"
+  // Finanziaria
+  | "Richiesta finanziamento"
+  | "Delibera finanziaria"
+  | "Busta paga / Redditi"
+  | "IBAN / Mandato SEPA"
   | "Prova pagamento"
   // Permuta
   | "Libretto permuta"
+  | "Certificato proprietà (CDP)"
+  | "Atto di vendita usato"
+  | "Perizia permuta"
   | "Foto permuta"
   // Consegna
   | "Verbale consegna"
+  | "Check-list preconsegna"
+  | "Liberatoria consegna"
   | "Assicurazione consegna";
+
 
 export type Documento = {
   id: string;

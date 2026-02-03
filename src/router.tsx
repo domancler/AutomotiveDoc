@@ -4,11 +4,11 @@ import { DashboardPage } from "@/views/DashboardPage";
 import { FascicoliInCorsoPage } from "@/views/FascicoliInCorsoPage";
 import { FascicoliDisponibiliPage } from "@/views/FascicoliDisponibiliPage";
 import { FascicoliTuttiPage } from "@/views/FascicoliTuttiPage";
-import { FascicoloDettaglioPage } from "@/views/FascicoloDettaglioPage";
 import { NotFoundPage } from "@/views/NotFoundPage";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { RequireTakeTabs } from "@/auth/RequireTakeTabs";
 import LoginPage from "@/views/LoginPage";
+import { FascicoloDettaglioPage } from "@/views/FascicoloDettaglioPage";
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
