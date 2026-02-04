@@ -106,6 +106,28 @@ Una volta annullato, il fascicolo non può più essere modificato né riattivato
 
 ---
 
+## Riassegnazione del fascicolo
+
+La riassegnazione del fascicolo è un’operazione di governance che consente al
+Supervisore di sostituire l’utente attualmente assegnato a una fase del processo,
+senza alterare lo stato o il flusso operativo del fascicolo.
+
+La riassegnazione:
+- è consentita esclusivamente tra utenti dello stesso ruolo
+- non modifica i macro-stati né i micro-stati del fascicolo
+- è tracciata nella timeline delle operazioni
+- richiede obbligatoriamente l’inserimento di una nota
+
+L’operazione è disponibile in tutte le fasi operative del fascicolo,
+ad eccezione dei seguenti stati:
+- Bozza
+- In attesa di presa in carico (validazione e consegna)
+- Approvato
+- Completato
+- Annullato
+
+---
+
 ## Visibilità dei fascicoli
 
 L’interfaccia distingue i fascicoli nelle seguenti sezioni:
@@ -200,11 +222,37 @@ Profilo utente con funzioni esclusivamente amministrative.
 Profilo utente con funzioni di supervisione e governance del processo.
 
 - Dispone di accesso in sola lettura ai fascicoli e alle dashboard
-- Può intervenire trasversalmente effettuando:
-    - riassegnazioni tra operatori dello stesso ruolo
-    - annullamenti motivati dei fascicoli
-- Non opera direttamente sui documenti
 - Non prende in carico i fascicoli
+- Non opera direttamente sui documenti
+- Può intervenire trasversalmente effettuando:
+    - riassegnazioni dei fascicoli tra operatori dello stesso ruolo
+    - annullamenti motivati dei fascicoli
+
+Le operazioni di riassegnazione consentono di sostituire l’utente assegnato
+a una specifica fase del processo senza modificare lo stato o il flusso operativo
+del fascicolo.  
+Ogni riassegnazione è tracciata e richiede l’inserimento di una nota esplicativa.
+
+---
+
+## Configurazione del sistema
+
+Il sistema mette a disposizione un’area di configurazione accessibile
+esclusivamente all’utente Admin.
+
+Attraverso la sezione di configurazione è possibile gestire le tipologie
+documentali utilizzate nel processo di vendita, specificando per ciascuna:
+- la sezione di appartenenza
+- il nome della tipologia
+- l’obbligatorietà
+- lo stato di attivazione
+
+Le tipologie disattivate non sono più selezionabili nei nuovi fascicoli,
+ma restano visibili nei fascicoli storici, garantendo la coerenza
+e la tracciabilità delle informazioni.
+
+Le modifiche di configurazione hanno effetto a livello di sistema
+e influenzano la composizione dei fascicoli nelle fasi operative successive.
 
 ---
 
@@ -216,4 +264,4 @@ Il modello dei ruoli e degli stati è stato progettato per:
 - consentire flussi paralleli e indipendenti tra i BackOffice
 - evitare riavvii o reset non necessari del processo
 - mantenere la tracciabilità completa delle operazioni
-- preservare la coerenza e l’integrità del ciclo di vita del fascicolo  
+- preservare la coerenza e l’integrità del ciclo di vita del fascicolo
