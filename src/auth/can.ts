@@ -27,6 +27,13 @@ export type FascicoloContext = {
   inChargeDelivery?: string | null;
   inChargeVRC?: string | null;
 
+  // ultimi incarichi (usati quando un ramo è "da controllare" e l'incarico è stato liberato)
+  lastInChargeBO?: string | null;
+  lastInChargeBOF?: string | null;
+  lastInChargeBOU?: string | null;
+  lastInChargeDelivery?: string | null;
+  lastInChargeVRC?: string | null;
+
   /** true quando l'operatore consegna ha premuto "Procedi" verso controllo consegna */
   deliverySentToVRC?: boolean;
 
@@ -35,6 +42,13 @@ export type FascicoloContext = {
 
   /** CONSEGNATORE: true se tutte le tipologie inserite hanno un documento presente (oppure non ci sono tipologie) */
   deliveryDocsComplete?: boolean;
+
+  /** stati dei rami (quando disponibili), utili per regole che dipendono dai micro-stati */
+  branchStates?: {
+    bo?: StateCode;
+    bof?: StateCode;
+    bou?: StateCode;
+  };
 };
 
 const TAKE_BY_ROLE: Record<Role, Action | null> = {
@@ -73,11 +87,6 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   // - disponibile in tutti gli stati tranne Bozza
   // - solo owner del fascicolo “in mano” (nel momento corrente) oppure supervisore (RESPONSABILE)
   if (action === "FASCICOLO.CANCEL") {
-
-  // Lettura generale: tutti i ruoli devono poter vedere Dashboard e tab 'Tutti'
-  if (action === "DASHBOARD.VIEW") return true;
-  if (action === "FASCICOLO.VIEW_ALL") return true;
-
     if (!fascicolo) return false;
     if (!state || state === States.BOZZA || state === States.ANNULLATO) return false;
     // supervisore: sempre (a prescindere da chi lo ha in carico)
@@ -91,6 +100,10 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
     if (fascicolo.inChargeVRC === user.id) return true;
     return false;
   }
+
+  // Lettura generale: tutti i ruoli devono poter vedere Dashboard e tab 'Tutti'
+  if (action === "DASHBOARD.VIEW") return true;
+  if (action === "FASCICOLO.VIEW_ALL") return true;
 
   // ADMIN: solo config, zero fascicoli
   if (role === "ADMIN") {
@@ -109,7 +122,34 @@ export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext)
   if (role === "RESPONSABILE") {
     if (action === "DASHBOARD.VIEW") return true;
     if (action === "FASCICOLO.VIEW_ALL") return true;
-    if (action === "BACKOFFICE.REASSIGN") return true;
+    if (action === "FASCICOLO.REASSIGN") {
+      // Riassegnazione possibile "in qualunque momento" tranne stati finali o senza owner.
+      // Esclusi: Bozza, In attesa di presa in carico (validazione+consegna), Approvato, Completato, Annullato.
+      const s = fascicolo?.state;
+      if (!s) return false;
+      if (
+        s === States.BOZZA ||
+        s === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO ||
+        s === States.APPROVATO ||
+        s === States.COMPLETATO ||
+        s === States.ANNULLATO
+      )
+        return false;
+
+      // In validazione: vietato solo quando TUTTI i rami sono ancora "in attesa di presa in carico".
+      if (s === States.DA_VALIDARE_BO) {
+        const bs = fascicolo?.branchStates;
+        const bo = bs?.bo;
+        const bof = bs?.bof;
+        const bou = bs?.bou;
+        const allWaiting =
+          (bo ? bo === States.DA_VALIDARE_BO : true) &&
+          (bof ? bof === States.DA_VALIDARE_BOF : true) &&
+          (bou ? bou === States.DA_VALIDARE_BOU : true);
+        if (allWaiting) return false;
+      }
+      return true;
+    }
     return false;
   }
 

@@ -12,14 +12,20 @@ const LS_KEY = "automotivedoc_user";
 
 export const DEMO_USERS: StoredUser[] = [
   // Nominativi realistici (inventati) per screenshot e manuale utente
-  { id: "admin", username: "admin", name: "Paolo Riva", email: "p.riva@automotivedoc.it", role: "ADMIN" },
-  { id: "sup", username: "supervisore", name: "Stefano Marchetti", email: "s.marchetti@automotivedoc.it", role: "RESPONSABILE" },
-  { id: "ven", username: "venditore", name: "Luca Rinaldi", email: "l.rinaldi@automotivedoc.it", role: "COMMERCIALE" },
-  { id: "bo", username: "bo", name: "Sara Conti", email: "s.conti@automotivedoc.it", role: "BO" },
-  { id: "bof", username: "bof", name: "Andrea Moretti", email: "a.moretti@automotivedoc.it", role: "BOF" },
-  { id: "bou", username: "bou", name: "Elena Gallo", email: "e.gallo@automotivedoc.it", role: "BOU" },
-  { id: "del", username: "consegna", name: "Michele Russo", email: "m.russo@automotivedoc.it", role: "CONSEGNATORE" },
-  { id: "vrc", username: "controllo", name: "Valentina De Luca", email: "v.deluca@automotivedoc.it", role: "VRC" },
+  { id: "admin", username: "paolo.riva", name: "Paolo Riva", email: "p.riva@automotivedoc.it", role: "ADMIN" },
+  { id: "sup", username: "stefano.marchetti", name: "Stefano Marchetti", email: "s.marchetti@automotivedoc.it", role: "RESPONSABILE" },
+  { id: "ven", username: "luca.rinaldi", name: "Luca Rinaldi", email: "l.rinaldi@automotivedoc.it", role: "COMMERCIALE" },
+  { id: "ven2", username: "marco.bianchi", name: "Marco Bianchi", email: "m.bianchi@automotivedoc.it", role: "COMMERCIALE" },
+  { id: "bo", username: "sara.conti", name: "Sara Conti", email: "s.conti@automotivedoc.it", role: "BO" },
+  { id: "bo2", username: "giulia.ferraro", name: "Giulia Ferraro", email: "g.ferraro@automotivedoc.it", role: "BO" },
+  { id: "bof", username: "andrea.moretti", name: "Andrea Moretti", email: "a.moretti@automotivedoc.it", role: "BOF" },
+  { id: "bof2", username: "paolo.greco", name: "Paolo Greco", email: "p.greco@automotivedoc.it", role: "BOF" },
+  { id: "bou", username: "elena.gallo", name: "Elena Gallo", email: "e.gallo@automotivedoc.it", role: "BOU" },
+  { id: "bou2", username: "francesco.lombardi", name: "Francesco Lombardi", email: "f.lombardi@automotivedoc.it", role: "BOU" },
+  { id: "del", username: "michele.russo", name: "Michele Russo", email: "m.russo@automotivedoc.it", role: "CONSEGNATORE" },
+  { id: "del2", username: "davide.romano", name: "Davide Romano", email: "d.romano@automotivedoc.it", role: "CONSEGNATORE" },
+  { id: "vrc", username: "valentina.deluca", name: "Valentina De Luca", email: "v.deluca@automotivedoc.it", role: "VRC" },
+  { id: "vrc2", username: "controllo2", name: "Alessandra Neri", email: "a.neri@automotivedoc.it", role: "VRC" },
 ];
 
 function roleFromUsername(username: string): Role {

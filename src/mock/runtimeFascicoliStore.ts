@@ -55,7 +55,12 @@ export function dispatchFascicoloAction(args: {
   fascicoloId: string;
   action: Action;
   actor: { id?: string; role?: Role; name?: string };
-  payload?: { note?: string };
+  payload?: {
+    note?: string;
+    targetRole?: Role;
+    fromUserId?: string;
+    newUserId?: string;
+  };
 }) {
   updateFascicolo(args.fascicoloId, (f) =>
     applyWorkflowAction(f, args.action, args.actor, args.payload)

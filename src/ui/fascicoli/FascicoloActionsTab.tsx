@@ -17,11 +17,13 @@ import {
   UserCheck,
   ArrowRightCircle,
   Ban,
+  UserCog,
 } from "lucide-react";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { dispatchFascicoloAction } from "@/mock/runtimeFascicoliStore";
 import { NoteConfirmDialog } from "@/ui/components/note-confirm-dialog";
+import { ReassignDialog, getReassignCandidates } from "@/ui/components/reassign-dialog";
 
 /** -----------------------
  *  Stato: mapping temporaneo
@@ -176,6 +178,11 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
     inChargeBOU: anyF.inChargeBOU ?? null,
     inChargeDelivery: anyF.inChargeDelivery ?? null,
     inChargeVRC: anyF.inChargeVRC ?? null,
+    lastInChargeBO: anyF.lastInChargeBO ?? null,
+    lastInChargeBOF: anyF.lastInChargeBOF ?? null,
+    lastInChargeBOU: anyF.lastInChargeBOU ?? null,
+    lastInChargeDelivery: anyF.lastInChargeDelivery ?? null,
+    lastInChargeVRC: anyF.lastInChargeVRC ?? null,
     deliverySentToVRC: Boolean(anyF.deliverySentToVRC),
     commDocsComplete: (() => {
       // Per il venditore: completo solo se TUTTE le tipologie richieste hanno un documento.
@@ -187,6 +194,11 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
       // Per la consegna: completo solo se TUTTE le tipologie richieste della sezione "consegna" hanno un documento.
       return !missingRequiredDocsBySections(f, ["consegna"]);
     })(),
+    branchStates: {
+      bo,
+      bof,
+      bou,
+    },
   };
 }
 
@@ -413,6 +425,8 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
     return missingRequiredDocsBySections(fascicolo, sections);
   }, [fascicolo, role]);
 
+  const reassign = React.useMemo(() => getReassignCandidates(fascicolo), [fascicolo]);
+
   const allowed = (action: Action) =>
     user ? can(user as any, action, ctx) : false;
 
@@ -427,8 +441,18 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
   };
 
   const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [reassignOpen, setReassignOpen] = React.useState(false);
 
-  const doAction = (action: Action, label: string, payload?: { note?: string }) => {
+  const doAction = (
+    action: Action,
+    label: string,
+    payload?: {
+      note?: string;
+      targetRole?: Role;
+      fromUserId?: string;
+      newUserId?: string;
+    }
+  ) => {
     dispatchFascicoloAction({
       fascicoloId: fascicolo.id,
       action,
@@ -466,6 +490,21 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
         onConfirm={(note) => {
           doAction("FASCICOLO.CANCEL", "Annulla fascicolo", { note });
           setCancelOpen(false);
+        }}
+      />
+
+      <ReassignDialog
+        open={reassignOpen}
+        fascicolo={fascicolo}
+        onOpenChange={setReassignOpen}
+        onConfirm={(p) => {
+          doAction("FASCICOLO.REASSIGN", "Riassegna", {
+            targetRole: p.targetRole,
+            fromUserId: p.fromUserId,
+            newUserId: p.newUserId,
+            note: p.note,
+          });
+          setReassignOpen(false);
         }}
       />
       <div className="space-y-4">
@@ -704,6 +743,24 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               })()}
             />
           </div>
+      )}
+
+      {/* ✅ RESPONSABILE (Supervisore) */}
+      {role === "RESPONSABILE" && (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <ActionCard
+            title="Riassegna"
+            subtitle="Sostituisci l'utente assegnato (senza cambiare stato)."
+            icon={<UserCog className="h-5 w-5" />}
+            enabled={allowed("FASCICOLO.REASSIGN") && reassign.candidates.length > 0}
+            onClick={() => setReassignOpen(true)}
+            disabledReason={(() => {
+              if (!allowed("FASCICOLO.REASSIGN")) return "Non disponibile in questo stato.";
+              if (reassign.candidates.length === 0) return "In questo stato non ci sono incarichi riassegnabili.";
+              return "";
+            })()}
+          />
+        </div>
       )}
 
       {/* Finale alternativo: Annullamento */}

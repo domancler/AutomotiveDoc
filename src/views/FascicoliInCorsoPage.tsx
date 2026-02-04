@@ -82,7 +82,13 @@ function buildCtx(f: Fascicolo, role?: Role): FascicoloContext {
     inChargeBOU: anyF.inChargeBOU ?? null,
     inChargeDelivery: anyF.inChargeDelivery ?? null,
     inChargeVRC: anyF.inChargeVRC ?? null,
+    lastInChargeBO: anyF.lastInChargeBO ?? null,
+    lastInChargeBOF: anyF.lastInChargeBOF ?? null,
+    lastInChargeBOU: anyF.lastInChargeBOU ?? null,
+    lastInChargeDelivery: anyF.lastInChargeDelivery ?? null,
+    lastInChargeVRC: anyF.lastInChargeVRC ?? null,
     deliverySentToVRC: anyF.deliverySentToVRC ?? !!(f as any).deliverySentToVRC,
+    branchStates: { bo, bof, bou },
   };
 }
 

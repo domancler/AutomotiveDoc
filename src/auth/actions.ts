@@ -34,7 +34,9 @@ export type Action =
   // annullamento (finale alternativo)
   | "FASCICOLO.CANCEL"
 
+  // riassegnazione (supervisore)
+  | "FASCICOLO.REASSIGN"
+
   // amministrativo/responsabile/admin
   | "FATTURA.UPLOAD"
-  | "BACKOFFICE.REASSIGN"
   | "ADMIN.DOC_RULES_MANAGE";

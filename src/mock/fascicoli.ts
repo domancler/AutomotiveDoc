@@ -142,7 +142,7 @@ export type Fascicolo = {
     at: string;
     author: string;
     text: string;
-    kind?: "reopen" | "generic" | "cancel";
+    kind?: "reopen" | "generic" | "cancel" | "reassign";
   }[];
 };
 

@@ -2,6 +2,7 @@ import { States, type StateCode } from "@/workflow/states";
 import type { Fascicolo } from "@/mock/fascicoli";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
+import { DEMO_USERS } from "@/auth/auth";
 
 function nowIso() {
   return new Date().toISOString();
@@ -71,7 +72,12 @@ export function applyWorkflowAction(
   f: Fascicolo,
   action: Action,
   actor: { id?: string; role?: Role; name?: string },
-  payload?: { note?: string }
+  payload?: {
+    note?: string;
+    targetRole?: Role;
+    fromUserId?: string;
+    newUserId?: string;
+  }
 ): Fascicolo {
   const actorName = actor.name || actor.role || "Utente";
   const actorId = actor.id ?? null;
@@ -143,6 +149,120 @@ export function applyWorkflowAction(
   };
 
   switch (action) {
+    case "FASCICOLO.REASSIGN": {
+      const targetRole = payload?.targetRole;
+      const fromUserId = payload?.fromUserId;
+      const newUserId = payload?.newUserId;
+      const noteText = (payload?.note ?? "").trim();
+
+      if (!targetRole || !fromUserId || !newUserId || !noteText) return next;
+
+      const roleLabel = (r: Role) => {
+        switch (r) {
+          case "COMMERCIALE":
+            return "Venditore";
+          case "BO":
+            return "BackOffice Anagrafico";
+          case "BOF":
+            return "BackOffice Finanziario";
+          case "BOU":
+            return "BackOffice Permuta";
+          case "CONSEGNATORE":
+            return "Operatore Consegna";
+          case "VRC":
+            return "Controllo Consegna";
+          default:
+            return r;
+        }
+      };
+
+      const nameById = (id?: string | null) => {
+        if (!id) return "—";
+        const u = DEMO_USERS.find((x) => x.id === id);
+        return u?.name || u?.username || id;
+      };
+
+      // NOTE: nessun cambio di stato / flusso
+      const beforeName = nameById(fromUserId);
+      const afterName = nameById(newUserId);
+
+      // Aggiorna solo l'incarico del ruolo selezionato.
+      if (targetRole === "COMMERCIALE") {
+        next = {
+          ...next,
+          ownerId: newUserId,
+          assegnatario: afterName,
+        };
+      }
+
+      if (targetRole === "BO") {
+        const bs = (next.workflow as any)?.bo as StateCode | undefined;
+        next = {
+          ...next,
+          // se il ramo è in verifica, deve cambiare l'utente "in carico".
+          // se è da controllare, l'incarico è spesso nullo: in quel caso aggiorniamo solo il lastInCharge.
+          inChargeBO: bs === States.VERIFICHE_BO ? newUserId : next.inChargeBO,
+          lastInChargeBO: newUserId,
+        };
+      }
+
+      if (targetRole === "BOF") {
+        const bs = (next.workflow as any)?.bof as StateCode | undefined;
+        next = {
+          ...next,
+          inChargeBOF: bs === States.VERIFICHE_BOF ? newUserId : next.inChargeBOF,
+          lastInChargeBOF: newUserId,
+        };
+      }
+
+      if (targetRole === "BOU") {
+        const bs = (next.workflow as any)?.bou as StateCode | undefined;
+        next = {
+          ...next,
+          inChargeBOU: bs === States.VERIFICHE_BOU ? newUserId : next.inChargeBOU,
+          lastInChargeBOU: newUserId,
+        };
+      }
+
+      if (targetRole === "CONSEGNATORE") {
+        const os = (next.workflow as any)?.overall as StateCode | undefined;
+        next = {
+          ...next,
+          // In consegna, l'OC può essere attivo in "In finalizzazione" o "Da controllare".
+          inChargeDelivery: os === States.IN_FINALIZZAZIONE || os === States.CONSEGNA_DA_CONTROLLARE ? newUserId : next.inChargeDelivery,
+          lastInChargeDelivery: newUserId,
+        };
+      }
+
+      if (targetRole === "VRC") {
+        const os = (next.workflow as any)?.overall as StateCode | undefined;
+        next = {
+          ...next,
+          // Il CC è in carico in "Consegna – in verifica"; in "da controllare" l'incarico è sul consegnatore.
+          inChargeVRC: os === States.CONSEGNA_IN_VERIFICA ? newUserId : next.inChargeVRC,
+          lastInChargeVRC: newUserId,
+        };
+      }
+
+      const msg = `Riassegnazione ${roleLabel(targetRole)}: ${beforeName} → ${afterName}`;
+      next = {
+        ...next,
+        timeline: pushTimeline(next, actorName, msg),
+        note: [
+          ...(Array.isArray(next.note) ? next.note : []),
+          {
+            id: `NOTE-${Math.random().toString(16).slice(2, 8)}`,
+            at: nowIso(),
+            author: actorName,
+            text: noteText,
+            kind: "reassign",
+          },
+        ],
+      };
+
+      return next;
+    }
+
     case "FASCICOLO.CANCEL": {
       // Finale alternativo: Annullato (irreversibile)
       // - sempre possibile tranne in Bozza (la regola dei permessi lo impedisce)
