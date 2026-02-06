@@ -8,7 +8,7 @@ import { Input } from "@/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Progress } from "@/ui/components/progress";
 import { cn, formatEuro } from "@/lib/utils";
-import { FileUp, CheckCircle2, Clock3, Trash2, Car, User, CalendarDays, ChevronDown, Check, Search } from "lucide-react";
+import { FileUp, CheckCircle2, Clock3, Trash2, Car, User, CalendarDays, ChevronDown, Check, Search, PenLine } from "lucide-react";
 import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
 import { useAuth } from "@/auth/AuthProvider";
 import { branchStatusBadges, visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
@@ -19,11 +19,10 @@ import type { DocumentoTipo } from "@/mock/fascicoli";
 import { addDocumentoRow, markDocumentoAssente, markDocumentoPresente, removeDocumentoRow } from "@/mock/runtimeFascicoliStore";
 import { ConfirmDialog } from "@/ui/components/confirm-dialog";
 import { DocumentPreviewDialog } from "@/ui/components/document-preview-dialog";
+import { DocumentSignDialog } from "@/ui/components/document-sign-dialog";
 import { can, type FascicoloContext } from "@/auth/can";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
-import { useTipologieStore } from "@/mock/useTipologieStore";
-import type { TipologiaDocumento, TipologiaSezione } from "@/mock/tipologie";
 
 type DocSection = "contratto" | "anagrafica" | "finanziaria" | "permuta" | "consegna";
 
@@ -84,8 +83,7 @@ function docSectionForTipo(tipo: DocumentoTipo): DocSection {
  * Per evitare guerre di tipi, qui trattiamo le tipologie come stringhe UI,
  * e castiamo a DocumentoTipo SOLO quando passiamo al runtime store/mock.
  */
-// Fallback statico (seed) usato solo se per qualche motivo lo store tipologie non è disponibile.
-const DEFAULT_DOC_TIPI_BY_SECTION: Record<DocSection, readonly string[]> = {
+const DOC_TIPI_BY_SECTION: Record<DocSection, readonly string[]> = {
   contratto: ["Contratto di vendita", "Proposta d'acquisto", "Modulo ordine", "Condizioni generali di vendita"],
   anagrafica: [
     "Documento identità",
@@ -99,23 +97,6 @@ const DEFAULT_DOC_TIPI_BY_SECTION: Record<DocSection, readonly string[]> = {
   permuta: ["Libretto permuta", "Certificato proprietà (CDP)", "Atto di vendita usato", "Perizia permuta", "Foto permuta"],
   consegna: ["Verbale consegna", "Check-list preconsegna", "Liberatoria consegna", "Assicurazione consegna"],
 } as const;
-
-const DOC_SECTIONS: DocSection[] = ["contratto", "anagrafica", "finanziaria", "permuta", "consegna"];
-
-function docSectionFromSezione(sezione: TipologiaSezione): DocSection {
-  switch (sezione) {
-    case "CONTRATTO":
-      return "contratto";
-    case "ANAGRAFICA":
-      return "anagrafica";
-    case "FINANZIARIA":
-      return "finanziaria";
-    case "PERMUTA":
-      return "permuta";
-    case "CONSEGNA":
-      return "consegna";
-  }
-}
 
 function allowedDocSectionsForRole(role?: Role): DocSection[] {
   if (!role) return [];
@@ -185,10 +166,8 @@ function TipologiePicker(props: {
   allowedTipi: string[];
   /** Quando true mostra i gruppi per sezione */
   showGroups?: boolean;
-  /** Mappa tipologie per sezione (serve per raggruppare / nascondere disattivate) */
-  tipiBySection?: Record<DocSection, readonly string[]>;
 }) {
-  const { value, onChange, disabled, allowedTipi, showGroups, tipiBySection } = props;
+  const { value, onChange, disabled, allowedTipi, showGroups } = props;
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -211,10 +190,8 @@ function TipologiePicker(props: {
   const normQ = q.trim().toLowerCase();
   const match = (s: string) => (normQ ? s.toLowerCase().includes(normQ) : true);
 
-  const bySection = tipiBySection ?? DEFAULT_DOC_TIPI_BY_SECTION;
-
-  const grouped = (Object.keys(bySection) as DocSection[]).map((sec) => {
-    const items = bySection[sec].filter((t) => allowedTipi.includes(t)).filter((t) => match(t));
+  const grouped = (Object.keys(DOC_TIPI_BY_SECTION) as DocSection[]).map((sec) => {
+    const items = DOC_TIPI_BY_SECTION[sec].filter((t) => allowedTipi.includes(t)).filter((t) => match(t));
     return { sec, items };
   });
 
@@ -314,14 +291,12 @@ export function FascicoloDettaglioPage() {
   const { user } = useAuth();
   const isCommercial = user?.role === "COMMERCIALE";
 
-  // Tipologie runtime configurabili dall'admin (in-memory)
-  const tipologie = useTipologieStore();
-
   const [tab, setTab] = useState("overview");
   const [newNote, setNewNote] = useState("");
 
   // --- Documenti: aggiunta tipologie + paginazione ---
   const [docTipo, setDocTipo] = useState<string>("Documento identità");
+  const [docRichiesto, setDocRichiesto] = useState(true);
   const [docNote, setDocNote] = useState("");
   const [docsPage, setDocsPage] = useState(0);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; label: string } | null>(null);
@@ -330,6 +305,19 @@ export function FascicoloDettaglioPage() {
     url: "",
     title: undefined,
   });
+
+  const [sign, setSign] = useState<{ open: boolean; url: string; title?: string }>({
+    open: false,
+    url: "",
+    title: undefined,
+  });
+
+  // Regola di dominio: le tipologie inserite dai BackOffice sono sempre "richieste".
+  // Per evitare casi ambigui (tipologia senza documento ma non "richiesta"), lasciamo il toggle
+  // configurabile solo per il venditore.
+  useEffect(() => {
+    if (!isCommercial) setDocRichiesto(true);
+  }, [isCommercial]);
 
   const ctx: FascicoloContext = useMemo(() => {
     const anyF: any = fascicolo;
@@ -369,6 +357,14 @@ export function FascicoloDettaglioPage() {
     };
   }, [fascicolo, user?.role]);
 
+  // Regola di dominio (venditore <-> BO):
+  // - Il flag "Richiesto" ha senso solo per il venditore.
+  // - Le tipologie inserite dai BackOffice sono SEMPRE richieste.
+  // Evita quindi che un BO inserisca una tipologia "non richiesta" e poi possa validare senza allegati.
+  useEffect(() => {
+    if (!isCommercial) setDocRichiesto(true);
+  }, [isCommercial]);
+
   const allowed = useMemo(() => {
     return (action: Action) => (user ? can(user as any, action, ctx) : false);
   }, [user, ctx]);
@@ -388,10 +384,6 @@ export function FascicoloDettaglioPage() {
 
   const readOnly = !canOperate;
 
-  // L'admin nel progetto è un ruolo “gestionale” (non operativo sui fascicoli):
-  // nel dettaglio quindi nascondiamo la sezione Azioni per evitare pulsanti inutili/confusione.
-  const showActionsSection = user?.role !== "ADMIN";
-
   const isCommInReview =
     user?.role === "COMMERCIALE" &&
     (ctx.state === States.DA_RIVEDERE_BO || ctx.state === States.DA_RIVEDERE_BOF || ctx.state === States.DA_RIVEDERE_BOU);
@@ -399,26 +391,15 @@ export function FascicoloDettaglioPage() {
 
   const docStats = useMemo(() => {
     if (!fascicolo) return { required: 0, present: 0 };
-
-    const required = fascicolo.documenti.filter((d) => {
-      const meta = tipologie.find((t) => String(t.nome) === String(d.tipo));
-      return meta ? meta.obbligatorio : d.richiesto;
-    }).length;
-
-    // "presenti" riferito ai documenti richiesti (coerente con l'etichetta in UI)
-    const present = fascicolo.documenti.filter((d) => {
-      const meta = tipologie.find((t) => String(t.nome) === String(d.tipo));
-      const isReq = meta ? meta.obbligatorio : d.richiesto;
-      return isReq && d.presente;
-    }).length;
-
+    const required = fascicolo.documenti.filter((d) => d.richiesto).length;
+    const present = fascicolo.documenti.filter((d) => d.presente).length;
     return { required, present };
-  }, [fascicolo, tipologie]);
+  }, [fascicolo]);
 
-  const allowedSections = useMemo(() => {
-    const role = user?.role as Role | undefined;
-    if (!role) return [];
-    const base = allowedDocSectionsForRole(role);
+    const allowedSections = useMemo(() => {
+      const role = user?.role as Role | undefined;
+      if (!role) return [];
+      const base = allowedDocSectionsForRole(role);
 
       // Venditore: in fase "Da controllare" può operare SOLO sulle sezioni richieste dai BO (rami in DA_RIVEDERE_*).
       if (role === "COMMERCIALE" && fascicolo?.workflow?.overall === States.DA_VALIDARE_BO) {
@@ -426,56 +407,19 @@ export function FascicoloDettaglioPage() {
         if (review.length > 0) return base.filter((s) => review.includes(s));
       }
 
-    return base;
-  }, [user?.role, fascicolo]);
-
-  // Index tipologie per nome -> meta (sezione, attivo, ordine)
-  const tipologiaByNome = useMemo(() => {
-    const m = new Map<string, TipologiaDocumento>();
-    for (const t of tipologie) m.set(String(t.nome), t);
-    return m;
-  }, [tipologie]);
-
-  // Tipologie attive per sezione (usate nei picker: le disattivate devono essere nascoste)
-  const tipiBySectionActive = useMemo(() => {
-    const by: Record<DocSection, string[]> = {
-      contratto: [],
-      anagrafica: [],
-      finanziaria: [],
-      permuta: [],
-      consegna: [],
-    };
-
-    const sorted = [...tipologie].sort((a, b) => (a.sezione === b.sezione ? a.ordine - b.ordine : a.sezione.localeCompare(b.sezione)));
-    for (const t of sorted) {
-      if (!t.attivo) continue;
-      const sec = docSectionFromSezione(t.sezione);
-      by[sec].push(String(t.nome));
-    }
-
-    // fallback seed se lo store è vuoto per qualche motivo
-    const hasAny = DOC_SECTIONS.some((s) => by[s].length > 0);
-    if (!hasAny) {
-      for (const s of DOC_SECTIONS) by[s] = [...DEFAULT_DOC_TIPI_BY_SECTION[s]];
-    }
-    return by;
-  }, [tipologie]);
-
-  const docSectionForTipoRuntime = (tipo: DocumentoTipo): DocSection => {
-    const meta = tipologiaByNome.get(String(tipo));
-    if (meta) return docSectionFromSezione(meta.sezione);
-    return docSectionForTipo(tipo);
-  };
+      return base;
+    }, [user?.role, fascicolo]);
 
   const allowedTipi = useMemo(() => {
     const all = (allowedSections ?? []).reduce<string[]>((acc, s) => {
-      const arr = tipiBySectionActive[s] ?? [];
+      const arr = DOC_TIPI_BY_SECTION[s] ?? [];
+      // arr è readonly string[]: lo spalmiamo in acc
       acc.push(...arr);
       return acc;
     }, []);
 
     return Array.from(new Set(all));
-  }, [allowedSections, tipiBySectionActive]);
+  }, [allowedSections]);
 
   useEffect(() => {
     if (allowedTipi.length === 0) return;
@@ -506,12 +450,11 @@ export function FascicoloDettaglioPage() {
       consegna: [],
     };
     for (const d of docsRows) {
-      const meta = tipologiaByNome.get(String(d.tipo));
-      const sec = meta ? docSectionFromSezione(meta.sezione) : docSectionForTipo(d.tipo);
+      const sec = docSectionForTipo(d.tipo);
       by[sec].push(d);
     }
     return by;
-  }, [docsRows, tipologiaByNome]);
+  }, [docsRows]);
 
   useEffect(() => {
     const last = Math.max(0, docsTotalPages - 1);
@@ -617,12 +560,12 @@ export function FascicoloDettaglioPage() {
           <div className="text-sm text-muted-foreground">{fascicolo.progress}% completamento</div>
         </CardContent>
       </Card>
-      {showActionsSection && (
-        <div className="space-y-3">
-          <div className="text-lg font-semibold">Azioni</div>
-          <FascicoloActionsTab fascicolo={fascicolo} />
-        </div>
-      )}
+
+      <div className="space-y-3">
+        <div className="text-lg font-semibold">Azioni</div>
+        <FascicoloActionsTab fascicolo={fascicolo} />
+      </div>
+
       <div className="pt-2">
         <div className="text-lg font-semibold">Sezioni</div>
       </div>
@@ -637,120 +580,194 @@ export function FascicoloDettaglioPage() {
         </TabsList>
 
         <TabsContent value="overview">
-          <div className="grid gap-4 lg:grid-cols-4">
-            <Card className="lg:col-span-2">
+          {/*
+            Layout "a colonne" per evitare buchi visivi dovuti ad altezze diverse tra le card.
+            - Colonna sinistra: Cliente + Pagamento
+            - Colonna destra: Veicolo + Permuta
+          */}
+          <div className="grid gap-4 lg:grid-cols-2 items-start">
+            <div className="flex flex-col gap-4">
+              <Card>
               <CardHeader>
                 <CardTitle>Cliente</CardTitle>
-                <CardDescription>Dati essenziali</CardDescription>
+                <CardDescription>Dati anagrafici e contatti</CardDescription>
               </CardHeader>
               <CardContent className="text-sm">
-                <div>
-                  <span className="text-muted-foreground">Nome:</span> {fascicolo.cliente.nome}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Email:</span> {fascicolo.cliente.email ?? "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Telefono:</span> {fascicolo.cliente.telefono ?? "—"}
+                <div className="grid gap-x-10 gap-y-2 sm:grid-cols-2">
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Nome</div>
+                    <div className="font-medium">{fascicolo.cliente.nome}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Tipo</div>
+                    <div className="font-medium">{fascicolo.cliente.tipo ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Codice fiscale</div>
+                    <div className="font-medium">{fascicolo.cliente.codiceFiscale ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Nascita</div>
+                    <div className="font-medium">
+                      {fascicolo.cliente.dataNascita
+                        ? new Date(fascicolo.cliente.dataNascita).toLocaleDateString("it-IT")
+                        : "—"}
+                      {fascicolo.cliente.luogoNascita ? ` (${fascicolo.cliente.luogoNascita})` : ""}
+                    </div>
+                  </div>
+                  <div className="space-y-0.5 sm:col-span-2">
+                    <div className="text-xs text-muted-foreground">Indirizzo</div>
+                    <div className="font-medium">{fascicolo.cliente.indirizzo ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Email</div>
+                    <div className="font-medium break-all">{fascicolo.cliente.email ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Telefono</div>
+                    <div className="font-medium">{fascicolo.cliente.telefono ?? "—"}</div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pagamento</CardTitle>
+                  <CardDescription>Condizioni e modalità</CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  <div>
+                    <span className="text-muted-foreground">Modalità:</span>{" "}
+                    {fascicolo.pagamento?.tipo ?? (fascicolo.hasFinanziamento ? "Finanziamento" : "Pagamento diretto")}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Acconto:</span>{" "}
+                    {fascicolo.pagamento?.acconto != null ? formatEuro(fascicolo.pagamento.acconto) : "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Importo finanziato:</span>{" "}
+                    {fascicolo.hasFinanziamento
+                      ? fascicolo.pagamento?.importoFinanziato != null
+                        ? formatEuro(fascicolo.pagamento.importoFinanziato)
+                        : "—"
+                      : "Non previsto"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Durata:</span>{" "}
+                    {fascicolo.hasFinanziamento
+                      ? fascicolo.pagamento?.durataMesi != null
+                        ? `${fascicolo.pagamento.durataMesi} mesi`
+                        : "—"
+                      : "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Rata:</span>{" "}
+                    {fascicolo.hasFinanziamento
+                      ? fascicolo.pagamento?.rataMensile != null
+                        ? `${formatEuro(fascicolo.pagamento.rataMensile)}/mese`
+                        : "—"
+                      : "—"}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <Card>
               <CardHeader>
                 <CardTitle>Veicolo</CardTitle>
-                <CardDescription>Informazioni auto</CardDescription>
+                <CardDescription>Dati veicolo e condizioni economiche</CardDescription>
               </CardHeader>
               <CardContent className="text-sm">
-                <div>
-                  <span className="text-muted-foreground">Marca:</span> {fascicolo.veicolo.marca}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Modello:</span> {fascicolo.veicolo.modello}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Targa:</span> {fascicolo.veicolo.targa ?? "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">VIN:</span> {fascicolo.veicolo.vin ?? "—"}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Pagamento</CardTitle>
-                <CardDescription>Condizioni e modalità</CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm space-y-1">
-                <div>
-                  <span className="text-muted-foreground">Modalità:</span>{" "}
-                  {fascicolo.pagamento?.tipo ?? (fascicolo.hasFinanziamento ? "Finanziamento" : "Pagamento diretto")}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Acconto:</span>{" "}
-                  {fascicolo.pagamento?.acconto != null ? formatEuro(fascicolo.pagamento.acconto) : "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Importo finanziato:</span>{" "}
-                  {fascicolo.hasFinanziamento
-                    ? fascicolo.pagamento?.importoFinanziato != null
-                      ? formatEuro(fascicolo.pagamento.importoFinanziato)
-                      : "—"
-                    : "Non previsto"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Durata:</span>{" "}
-                  {fascicolo.hasFinanziamento
-                    ? fascicolo.pagamento?.durataMesi != null
-                      ? `${fascicolo.pagamento.durataMesi} mesi`
-                      : "—"
-                    : "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Rata:</span>{" "}
-                  {fascicolo.hasFinanziamento
-                    ? fascicolo.pagamento?.rataMensile != null
-                      ? `${formatEuro(fascicolo.pagamento.rataMensile)}/mese`
-                      : "—"
-                    : "—"}
+                <div className="grid gap-x-10 gap-y-2 sm:grid-cols-2">
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Marca</div>
+                    <div className="font-medium">{fascicolo.veicolo.marca}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Modello</div>
+                    <div className="font-medium">{fascicolo.veicolo.modello}</div>
+                  </div>
+                  <div className="space-y-0.5 sm:col-span-2">
+                    <div className="text-xs text-muted-foreground">Versione</div>
+                    <div className="font-medium">{fascicolo.veicolo.versione ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Anno</div>
+                    <div className="font-medium">{fascicolo.veicolo.anno ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Alimentazione</div>
+                    <div className="font-medium">{fascicolo.veicolo.alimentazione ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Cambio</div>
+                    <div className="font-medium">{fascicolo.veicolo.cambio ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Colore</div>
+                    <div className="font-medium">{fascicolo.veicolo.colore ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Targa</div>
+                    <div className="font-medium">{fascicolo.veicolo.targa ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5 sm:col-span-2">
+                    <div className="text-xs text-muted-foreground">VIN</div>
+                    <div className="font-medium break-all">{fascicolo.veicolo.vin ?? fascicolo.veicolo.telaio ?? "—"}</div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Listino</div>
+                    <div className="font-medium">
+                      {fascicolo.veicolo.prezzoListino != null ? formatEuro(fascicolo.veicolo.prezzoListino) : "—"}
+                    </div>
+                  </div>
+                  <div className="space-y-0.5">
+                    <div className="text-xs text-muted-foreground">Concordato</div>
+                    <div className="font-medium">
+                      {fascicolo.veicolo.prezzoConcordato != null ? formatEuro(fascicolo.veicolo.prezzoConcordato) : "—"}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Permuta</CardTitle>
-                <CardDescription>Usato / veicolo in ritiro</CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm space-y-1">
-                <div>
-                  <span className="text-muted-foreground">Prevista:</span> {fascicolo.hasPermuta ? "Sì" : "No"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Veicolo:</span> {fascicolo.hasPermuta ? fascicolo.permuta?.veicolo ?? "—" : "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Targa:</span> {fascicolo.hasPermuta ? fascicolo.permuta?.targa ?? "—" : "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">KM:</span>{" "}
-                  {fascicolo.hasPermuta
-                    ? fascicolo.permuta?.km != null
-                      ? fascicolo.permuta.km.toLocaleString("it-IT")
-                      : "—"
-                    : "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Valore stimato:</span>{" "}
-                  {fascicolo.hasPermuta
-                    ? fascicolo.permuta?.valoreStimato != null
-                      ? formatEuro(fascicolo.permuta.valoreStimato)
-                      : "—"
-                    : "—"}
-                </div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Permuta</CardTitle>
+                  <CardDescription>Usato / veicolo in ritiro</CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  <div>
+                    <span className="text-muted-foreground">Prevista:</span> {fascicolo.hasPermuta ? "Sì" : "No"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Veicolo:</span>{" "}
+                    {fascicolo.hasPermuta ? fascicolo.permuta?.veicolo ?? "—" : "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Targa:</span> {fascicolo.hasPermuta ? fascicolo.permuta?.targa ?? "—" : "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">KM:</span>{" "}
+                    {fascicolo.hasPermuta
+                      ? fascicolo.permuta?.km != null
+                        ? fascicolo.permuta.km.toLocaleString("it-IT")
+                        : "—"
+                      : "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Valore stimato:</span>{" "}
+                    {fascicolo.hasPermuta
+                      ? fascicolo.permuta?.valoreStimato != null
+                        ? formatEuro(fascicolo.permuta.valoreStimato)
+                        : "—"
+                      : "—"}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 
@@ -768,14 +785,13 @@ export function FascicoloDettaglioPage() {
               )}
 
               <div className="rounded-lg border p-3">
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-4">
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-muted-foreground">Tipologia</div>
                     <TipologiePicker
                       value={docTipo}
                       onChange={(v) => setDocTipo(v)}
                       allowedTipi={allowedTipi}
-                      tipiBySection={tipiBySectionActive}
                       showGroups={user?.role === "COMMERCIALE"}
                       disabled={readOnly || isCommInReview || allowedTipi.length === 0}
                     />
@@ -787,15 +803,34 @@ export function FascicoloDettaglioPage() {
                     <Input value={docNote} onChange={(e) => setDocNote(e.target.value)} placeholder="Es: cointestatario" disabled={readOnly || isCommInReview} />
                   </div>
 
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium text-muted-foreground">Richiesto</div>
+                    <div className="flex h-9 items-center">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={docRichiesto}
+                          onChange={(e) => setDocRichiesto(e.target.checked)}
+                          className="peer sr-only"
+                          disabled={readOnly || !isCommercial}
+                        />
+                        <span className="relative inline-flex h-6 w-11 items-center rounded-full border bg-muted transition-colors peer-checked:bg-foreground/80">
+                          <span className="inline-block h-5 w-5 translate-x-1 rounded-full bg-background shadow transition peer-checked:translate-x-5" />
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {isCommercial ? (docRichiesto ? "Sì" : "No") : "Sempre"}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
                   <div className="flex items-end justify-end">
                     <Button
                       onClick={() => {
-                        const meta = tipologiaByNome.get(String(docTipo));
                         addDocumentoRow(fascicoloId, {
                           tipo: docTipo as DocumentoTipo,
-                          // Il requisito "Richiesto" è configurato dall'admin a livello di tipologia.
-                          // Se per qualche motivo la meta non esiste (fallback), consideriamo la tipologia richiesta.
-                          richiesto: meta ? meta.obbligatorio : true,
+                          // Venditore può marcare tipologie facoltative. BackOffice: sempre richieste.
+                          richiesto: isCommercial ? docRichiesto : true,
                           note: docNote.trim() ? docNote.trim() : undefined,
                         });
                         setDocNote("");
@@ -809,18 +844,14 @@ export function FascicoloDettaglioPage() {
               </div>
 
               <div className="space-y-3">
-                {DOC_SECTIONS.map((sec) => {
+                {(Object.keys(DOC_TIPI_BY_SECTION) as DocSection[]).map((sec) => {
                   const rows = docsBySection[sec];
                   if (!rows || rows.length === 0) return null;
 
                   const canEditSection = !readOnly && allowedSections.indexOf(sec) !== -1;
                   const defaultOpen = user?.role === "COMMERCIALE" ? true : allowedSections.indexOf(sec) !== -1;
-                  const isRequired = (r: (typeof rows)[number]) => {
-                    const meta = tipologiaByNome.get(String(r.tipo));
-                    return meta ? meta.obbligatorio : r.richiesto;
-                  };
-                  const required = rows.filter((r) => isRequired(r)).length;
-                  const present = rows.filter((r) => isRequired(r) && r.presente).length;
+                  const required = rows.filter((r) => r.richiesto).length;
+                  const present = rows.filter((r) => r.presente).length;
 
                   return (
                     <details key={sec} className="overflow-hidden rounded-lg border" defaultOpen={defaultOpen}>
@@ -850,23 +881,8 @@ export function FascicoloDettaglioPage() {
                           <tbody>
                           {rows.map((d) => (
                             <tr key={d.id} className="border-t">
-                              <td className="px-4 py-3 font-medium">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span>{d.tipo}</span>
-                                  {(() => {
-                                    const meta = tipologiaByNome.get(String(d.tipo));
-                                    if (meta && !meta.attivo) {
-                                      return <Badge variant="outline" className="text-xs">Disattivata</Badge>;
-                                    }
-                                    return null;
-                                  })()}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">{(() => {
-                                const meta = tipologiaByNome.get(String(d.tipo));
-                                const req = meta ? meta.obbligatorio : d.richiesto;
-                                return req ? "Sì" : "No";
-                              })()}</td>
+                              <td className="px-4 py-3 font-medium">{d.tipo}</td>
+                              <td className="px-4 py-3">{d.richiesto ? "Sì" : "No"}</td>
                               <td className="px-4 py-3">
                                   <span className={cn("inline-flex items-center gap-2", d.presente ? "text-foreground" : "text-muted-foreground")}>
                                     {d.presente ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
@@ -890,6 +906,16 @@ export function FascicoloDettaglioPage() {
                                               }
                                             >
                                               <Search className="h-4 w-4" /> Preview
+                                            </Button>
+                                          )}
+
+                                          {d.presente && d.fileUrl && (
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => setSign({ open: true, url: d.fileUrl!, title: d.tipo })}
+                                            >
+                                              <PenLine className="h-4 w-4" /> Firma
                                             </Button>
                                           )}
                                           <Button
@@ -954,6 +980,13 @@ export function FascicoloDettaglioPage() {
                 title={preview.title}
                 fileUrl={preview.url}
                 onOpenChange={(o) => setPreview((p) => ({ ...p, open: o }))}
+              />
+
+              <DocumentSignDialog
+                open={sign.open}
+                title={sign.title}
+                fileUrl={sign.url}
+                onOpenChange={(o) => setSign((s) => ({ ...s, open: o }))}
               />
             </CardContent>
           </Card>

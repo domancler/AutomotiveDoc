@@ -74,8 +74,36 @@ export type Documento = {
 export type Fascicolo = {
   id: string;
   numero: string;
-  cliente: { nome: string; telefono?: string; email?: string };
-  veicolo: { marca: string; modello: string; targa?: string; vin?: string };
+  /** Dati cliente (overview) */
+  cliente: {
+    /** Nome visualizzato (es. "Marco Bianchi") */
+    nome: string;
+    /** Dati aggiuntivi (demo realistica) */
+    codiceFiscale?: string;
+    dataNascita?: string; // ISO date (YYYY-MM-DD)
+    luogoNascita?: string;
+    indirizzo?: string;
+    telefono?: string;
+    email?: string;
+    tipo?: "Privato" | "Azienda";
+  };
+
+  /** Dati veicolo (overview) */
+  veicolo: {
+    marca: string;
+    modello: string;
+    versione?: string;
+    anno?: number;
+    alimentazione?: "Benzina" | "Diesel" | "Ibrida" | "Elettrica";
+    cambio?: "Manuale" | "Automatico";
+    colore?: string;
+    targa?: string;
+    /** VIN (compat: alias di telaio) */
+    vin?: string;
+    telaio?: string;
+    prezzoListino?: number;
+    prezzoConcordato?: number;
+  };
   stato: FascicoloStato;
 
   /** Workflow a stati (macro + rami BO) */
@@ -142,7 +170,7 @@ export type Fascicolo = {
     at: string;
     author: string;
     text: string;
-    kind?: "reopen" | "generic" | "cancel" | "reassign";
+    kind?: "reopen" | "generic" | "cancel";
   }[];
 };
 
@@ -219,7 +247,7 @@ function wfDelivery(overall: StateCode): FascicoloWorkflow {
  * - molti fascicoli sono già in stati avanzati, MA hanno i "lastInCharge*" valorizzati
  *   così puoi portarli avanti/indietro a runtime senza rompere i ritorni allo stesso utente.
  */
-export const fascicoli: Fascicolo[] = [
+const baseFascicoli: Fascicolo[] = [
   // =======================
   //  BOZZE (Disponibili ai venditori)
   // =======================
@@ -1131,3 +1159,162 @@ export const fascicoli: Fascicolo[] = [
     note: [],
   },
 ];
+
+// -----------------------------
+// Enrichment demo (runtime)
+// - Aggiunge dati realistici a Cliente e Veicolo per tutti i fascicoli demo
+// - Non rompe le strutture esistenti: se un campo è già valorizzato, lo mantiene
+// -----------------------------
+
+function hashStr(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+const CUSTOMER_POOL = [
+  {
+    nome: "Marco Bianchi",
+    codiceFiscale: "BNCMRC85M15F205Z",
+    dataNascita: "1985-08-15",
+    luogoNascita: "Milano (MI)",
+    indirizzo: "Via Verdi 12, 20121 Milano",
+    telefono: "+39 333 456 7890",
+    email: "marco.bianchi@email.it",
+    tipo: "Privato" as const,
+  },
+  {
+    nome: "Giulia Ferraro",
+    codiceFiscale: "FRRGLI92C58F839K",
+    dataNascita: "1992-03-18",
+    luogoNascita: "Napoli (NA)",
+    indirizzo: "Via Toledo 44, 80134 Napoli",
+    telefono: "+39 320 112 3344",
+    email: "giulia.ferraro@email.it",
+    tipo: "Privato" as const,
+  },
+  {
+    nome: "Lorenzo De Santis",
+    codiceFiscale: "DSNLRN88T10H501Y",
+    dataNascita: "1988-12-10",
+    luogoNascita: "Roma (RM)",
+    indirizzo: "Viale Trastevere 88, 00153 Roma",
+    telefono: "+39 347 901 2233",
+    email: "lorenzo.desantis@email.it",
+    tipo: "Privato" as const,
+  },
+  {
+    nome: "Claudia Romano",
+    codiceFiscale: "RMNCLD90A41F205H",
+    dataNascita: "1990-01-01",
+    luogoNascita: "Milano (MI)",
+    indirizzo: "Corso Buenos Aires 15, 20124 Milano",
+    telefono: "+39 331 778 9900",
+    email: "claudia.romano@email.it",
+    tipo: "Privato" as const,
+  },
+  {
+    nome: "AutoService S.r.l.",
+    codiceFiscale: "12345670961",
+    dataNascita: "2012-05-20",
+    luogoNascita: "Bari (BA)",
+    indirizzo: "Via Sparano 10, 70121 Bari",
+    telefono: "+39 080 123 4567",
+    email: "amministrazione@autoservice.it",
+    tipo: "Azienda" as const,
+  },
+] as const;
+
+const VEHICLE_POOL = [
+  {
+    marca: "Volkswagen",
+    modello: "Golf",
+    versione: "1.5 TSI Life",
+    anno: 2023,
+    alimentazione: "Benzina" as const,
+    cambio: "Manuale" as const,
+    colore: "Grigio Urano",
+    prezzoListino: 27990,
+    prezzoConcordato: 26490,
+  },
+  {
+    marca: "BMW",
+    modello: "Serie 1",
+    versione: "118d M Sport",
+    anno: 2024,
+    alimentazione: "Diesel" as const,
+    cambio: "Automatico" as const,
+    colore: "Nero metallizzato",
+    prezzoListino: 38900,
+    prezzoConcordato: 36500,
+  },
+  {
+    marca: "Audi",
+    modello: "A3 Sportback",
+    versione: "35 TFSI S line",
+    anno: 2023,
+    alimentazione: "Benzina" as const,
+    cambio: "Automatico" as const,
+    colore: "Bianco ghiaccio",
+    prezzoListino: 37200,
+    prezzoConcordato: 34900,
+  },
+  {
+    marca: "Toyota",
+    modello: "Yaris",
+    versione: "1.5 Hybrid Active",
+    anno: 2024,
+    alimentazione: "Ibrida" as const,
+    cambio: "Automatico" as const,
+    colore: "Blu elettrico",
+    prezzoListino: 24400,
+    prezzoConcordato: 23200,
+  },
+  {
+    marca: "Tesla",
+    modello: "Model 3",
+    versione: "RWD",
+    anno: 2024,
+    alimentazione: "Elettrica" as const,
+    cambio: "Automatico" as const,
+    colore: "Pearl White",
+    prezzoListino: 42990,
+    prezzoConcordato: 40990,
+  },
+] as const;
+
+function mkVin(seed: string) {
+  // VIN mock 17 char, alfanumerico (senza I/O/Q)
+  const alphabet = "ABCDEFGHJKLMNPRSTUVWXYZ0123456789";
+  let out = "";
+  const h = hashStr(seed);
+  for (let i = 0; i < 17; i++) out += alphabet[(h + i * 13) % alphabet.length];
+  return out;
+}
+
+function enrichFascicolo(f: Fascicolo): Fascicolo {
+  const idxC = hashStr(`${f.id}|C`) % CUSTOMER_POOL.length;
+  const idxV = hashStr(`${f.id}|V`) % VEHICLE_POOL.length;
+  const c = CUSTOMER_POOL[idxC];
+  const v = VEHICLE_POOL[idxV];
+  const vin = f.veicolo.vin ?? f.veicolo.telaio ?? mkVin(f.id);
+
+  return {
+    ...f,
+    cliente: {
+      ...c,
+      ...f.cliente,
+      // se nel mock vecchio c'era "Marco R." manteniamo eventuale override,
+      // ma se è un'abbreviazione, preferiamo il nome realistico.
+      nome: (f.cliente.nome ?? "").includes(".") ? c.nome : f.cliente.nome ?? c.nome,
+    },
+    veicolo: {
+      ...v,
+      ...f.veicolo,
+      vin,
+      telaio: f.veicolo.telaio ?? vin,
+    },
+  };
+}
+
+export const fascicoli: Fascicolo[] = baseFascicoli.map(enrichFascicolo);
