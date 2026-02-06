@@ -211,30 +211,30 @@ function niceStateLabel(state?: string) {
     case States.DA_VALIDARE_BO:
     case States.DA_VALIDARE_BOF:
     case States.DA_VALIDARE_BOU:
-      return "In attesa di presa in carico";
+      return "VLD - In attesa di presa in carico";
     case States.VERIFICHE_BO:
     case States.VERIFICHE_BOF:
     case States.VERIFICHE_BOU:
-      return "In verifica";
+      return "VLD - In verifica";
     case States.DA_RIVEDERE_BO:
     case States.DA_RIVEDERE_BOF:
     case States.DA_RIVEDERE_BOU:
-      return "Da controllare";
+      return "VLD - Da controllare";
     case States.VALIDATO_BO:
     case States.VALIDATO_BOF:
     case States.VALIDATO_BOU:
       // "Validato" è un micro-stato di ramo (validazione BackOffice), non uno stato macro.
-      return "In validazione – Validato";
+      return "VLD - Validato";
     case States.APPROVATO:
       return "Approvato";
     case States.IN_FINALIZZAZIONE:
       return "In finalizzazione";
     case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
-      return "Consegna - in attesa di presa in carico";
+      return "CNS - in attesa di presa in carico";
     case States.CONSEGNA_IN_VERIFICA:
-      return "Consegna - in verifica";
+      return "CNS - in verifica";
     case States.CONSEGNA_DA_CONTROLLARE:
-      return "Consegna - da controllare";
+      return "CNS - da controllare";
     case States.COMPLETATO:
       return "Completato";
     case States.ANNULLATO:
@@ -249,7 +249,7 @@ function reasonByState(action: Action, state?: string) {
   if (!state) return "Stato non disponibile";
 
   const inState = (expected: string[]) =>
-    expected.includes(state) ? "" : `Disponibile solo in: ${expected.map(s => niceStateLabel(s)).join(", ")}`;
+    expected.includes(state) ? "" : `Disponibile in: ${expected.map(s => niceStateLabel(s)).join(", ")}`;
 
   switch (action) {
     case "FASCICOLO.TAKE_COMM":
@@ -432,10 +432,10 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
 
   const disabledReason = (action: Action) => {
     if (action === "FASCICOLO.SEND_AS_COMM" && role === "COMMERCIALE" && ctx.commDocsComplete === false) {
-      return "Non puoi procedere: ci sono tipologie richieste senza documento. Carica i documenti mancanti oppure rimuovi le tipologie.";
+      return "Ci sono tipologie richieste senza documento. Carica i documenti mancanti.";
     }
     if (action === "DELIVERY.SEND_TO_VRC" && role === "CONSEGNATORE" && ctx.deliveryDocsComplete === false) {
-      return "Non puoi procedere: ci sono tipologie richieste senza documento. Carica i documenti mancanti oppure rimuovi le tipologie.";
+      return "Ci sono tipologie richieste senza documento. Carica i documenti mancanti.";
     }
     return reasonByState(action, action === "FASCICOLO.REOPEN" ? ctx.overallState : state);
   };
@@ -554,8 +554,8 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               title="Procedi"
               subtitle={
                 missingRequiredDocs
-                  ? "Se mancano documenti richiesti, rimanda al Venditore."
-                  : "Conferma esito positivo e completa la sezione."
+                  ? "Se mancano documenti necessari, rimanda al Venditore."
+                  : "Conferma esito positivo e completa."
               }
               icon={<CheckCircle2 className="h-5 w-5" />}
               tone={missingRequiredDocs ? "outline" : "default"}
@@ -579,7 +579,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             <div className="md:col-span-2 xl:col-span-1">
               <ActionCard
                 title="Riapri fascicolo approvato"
-                subtitle="Riapertura vera (solo su Approvato)."
+                subtitle="Riapri il fascicolo e torna in verifica."
                 icon={<RotateCcw className="h-5 w-5" />}
                 tone="danger"
                 enabled={allowed("FASCICOLO.REOPEN")}
@@ -630,7 +630,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             <div className="md:col-span-2 xl:col-span-1">
               <ActionCard
                 title="Riapri fascicolo approvato"
-                subtitle="Riapertura vera (solo su Approvato)."
+                subtitle="Riapri il fascicolo e torna in verifica."
                 icon={<RotateCcw className="h-5 w-5" />}
                 tone="danger"
                 enabled={allowed("FASCICOLO.REOPEN")}
@@ -681,7 +681,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             <div className="md:col-span-2 xl:col-span-1">
               <ActionCard
                 title="Riapri fascicolo approvato"
-                subtitle="Riapertura vera (solo su Approvato)."
+                subtitle="Riapri il fascicolo e torna in verifica."
                 icon={<RotateCcw className="h-5 w-5" />}
                 tone="danger"
                 enabled={allowed("FASCICOLO.REOPEN")}
@@ -697,7 +697,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
             <ActionCard
               title="Prendi in carico"
-              subtitle="Presa in carico su Approvato (senza cambio stato)."
+              subtitle="Presa in carico su Approvato."
               icon={<UserCheck className="h-5 w-5" />}
               enabled={allowed("DELIVERY.TAKE")}
               onClick={() => doAction("DELIVERY.TAKE", "Prendi in carico (Consegna)")}
@@ -705,7 +705,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             />
             <ActionCard
               title="Procedi"
-              subtitle="Invia al Controllo consegna (o ritorna allo stesso controllo se era in integrazione)."
+              subtitle="Invia al Controllo consegna."
               icon={<ArrowRightCircle className="h-5 w-5" />}
               enabled={allowed("DELIVERY.SEND_TO_VRC") && !missingRequiredDocs}
               onClick={() => doAction("DELIVERY.SEND_TO_VRC", "Procedi (Consegna)")}
@@ -727,7 +727,11 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
             />
             <ActionCard
               title="Procedi"
-              subtitle="Se mancano documenti richiesti, rimanda all'Operatore consegna. Altrimenti completa la consegna."
+              subtitle={
+                missingRequiredDocs
+                  ? "Se mancano documenti necessari, rimanda all'Operatore Consegna."
+                  : "Conferma esito positivo e completa il fascicolo."
+              }
               icon={<CheckCircle2 className="h-5 w-5" />}
               enabled={allowed("VRC.REQUEST_FIX") || allowed("VRC.VALIDATE")}
               onClick={() => {
@@ -769,7 +773,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
           <div className="mb-3">
             <div className="text-sm font-semibold">Annullamento</div>
             <div className="text-xs text-muted-foreground">
-              Chiude il fascicolo in modo definitivo (serve una motivazione).
+              Chiude il fascicolo in modo definitivo.
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

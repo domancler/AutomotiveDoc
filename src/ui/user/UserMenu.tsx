@@ -93,7 +93,7 @@ export function UserMenu() {
 
           <div className="p-1">
             <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
-              <User className="h-4 w-4" /> Profilo (mock)
+              <User className="h-4 w-4" /> Profilo
             </div>
 
             <Button

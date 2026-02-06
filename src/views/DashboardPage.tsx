@@ -394,8 +394,8 @@ export function DashboardPage() {
 <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Distribuzione per macro-stato</CardTitle>
-            <CardDescription>Vista sintetica (senza micro-stati BO / consegna)</CardDescription>
+            <CardTitle>Distribuzione per stati principali</CardTitle>
+            <CardDescription>Vista sintetica</CardDescription>
           </CardHeader>
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -457,8 +457,8 @@ export function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Dettaglio BackOffice</CardTitle>
-            <CardDescription>Micro-stati dei rami (BO / BOF / BOU)</CardDescription>
+            <CardTitle>Dettaglio In Validazione</CardTitle>
+            <CardDescription>Stati della fase</CardDescription>
           </CardHeader>
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -486,7 +486,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Dettaglio Consegna</CardTitle>
-            <CardDescription>Micro-stati della fase consegna / controllo consegna</CardDescription>
+            <CardDescription>Stati della fase</CardDescription>
           </CardHeader>
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">

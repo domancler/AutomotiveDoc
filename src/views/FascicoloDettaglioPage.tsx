@@ -714,7 +714,7 @@ export function FascicoloDettaglioPage() {
                     <div className="font-medium">{fascicolo.veicolo.targa ?? "—"}</div>
                   </div>
                   <div className="space-y-0.5 sm:col-span-2">
-                    <div className="text-xs text-muted-foreground">VIN</div>
+                    <div className="text-xs text-muted-foreground">Telaio</div>
                     <div className="font-medium break-all">{fascicolo.veicolo.vin ?? fascicolo.veicolo.telaio ?? "—"}</div>
                   </div>
                   <div className="space-y-0.5">
@@ -778,11 +778,11 @@ export function FascicoloDettaglioPage() {
               <CardDescription>Gestione tipologie e allegati</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {readOnly && (
-                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                  Solo lettura: prendi in carico il fascicolo per operare sui documenti.
-                </div>
-              )}
+              {/*{readOnly && (*/}
+              {/*  <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">*/}
+              {/*    Solo lettura: prendi in carico il fascicolo per operare sui documenti.*/}
+              {/*  </div>*/}
+              {/*)}*/}
 
               <div className="rounded-lg border p-3">
                 <div className="grid gap-3 md:grid-cols-4">
@@ -804,24 +804,24 @@ export function FascicoloDettaglioPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">Richiesto</div>
-                    <div className="flex h-9 items-center">
-                      <label className="inline-flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={docRichiesto}
-                          onChange={(e) => setDocRichiesto(e.target.checked)}
-                          className="peer sr-only"
-                          disabled={readOnly || !isCommercial}
-                        />
-                        <span className="relative inline-flex h-6 w-11 items-center rounded-full border bg-muted transition-colors peer-checked:bg-foreground/80">
-                          <span className="inline-block h-5 w-5 translate-x-1 rounded-full bg-background shadow transition peer-checked:translate-x-5" />
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          {isCommercial ? (docRichiesto ? "Sì" : "No") : "Sempre"}
-                        </span>
-                      </label>
-                    </div>
+                    {/*<div className="text-xs font-medium text-muted-foreground">Richiesto</div>*/}
+                    {/*<div className="flex h-9 items-center">*/}
+                    {/*  <label className="inline-flex items-center gap-2">*/}
+                    {/*    <input*/}
+                    {/*      type="checkbox"*/}
+                    {/*      checked={docRichiesto}*/}
+                    {/*      onChange={(e) => setDocRichiesto(e.target.checked)}*/}
+                    {/*      className="peer sr-only"*/}
+                    {/*      disabled={readOnly || !isCommercial}*/}
+                    {/*    />*/}
+                    {/*    <span className="relative inline-flex h-6 w-11 items-center rounded-full border bg-muted transition-colors peer-checked:bg-foreground/80">*/}
+                    {/*      <span className="inline-block h-5 w-5 translate-x-1 rounded-full bg-background shadow transition peer-checked:translate-x-5" />*/}
+                    {/*    </span>*/}
+                    {/*    <span className="text-sm text-muted-foreground">*/}
+                    {/*      {isCommercial ? (docRichiesto ? "Sì" : "No") : "Sempre"}*/}
+                    {/*    </span>*/}
+                    {/*  </label>*/}
+                    {/*</div>*/}
                   </div>
 
                   <div className="flex items-end justify-end">
@@ -862,11 +862,11 @@ export function FascicoloDettaglioPage() {
                         </div>
                       </summary>
 
-                      {!canEditSection && (
-                        <div className="border-t bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
-                          {readOnly ? "Solo lettura: prendi in carico il fascicolo per operare sui documenti." : "Solo lettura: questa sezione è gestita da un altro reparto."}
-                        </div>
-                      )}
+                      {/*{!canEditSection && (*/}
+                      {/*  <div className="border-t bg-muted/10 px-4 py-3 text-sm text-muted-foreground">*/}
+                      {/*    {readOnly ? "Solo lettura: prendi in carico il fascicolo per operare sui documenti." : "Solo lettura: questa sezione è gestita da un altro reparto."}*/}
+                      {/*  </div>*/}
+                      {/*)}*/}
 
                       <div className="border-t">
                         <table className="w-full text-sm">
@@ -1022,14 +1022,14 @@ export function FascicoloDettaglioPage() {
           <Card>
             <CardHeader>
               <CardTitle>Note</CardTitle>
-              <CardDescription>Commenti operativi (mock)</CardDescription>
+              <CardDescription>Commenti operativi</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {readOnly && (
-                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                  Solo lettura: prendi in carico il fascicolo per aggiungere note.
-                </div>
-              )}
+              {/*{readOnly && (*/}
+              {/*  <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">*/}
+              {/*    Solo lettura: prendi in carico il fascicolo per aggiungere note.*/}
+              {/*  </div>*/}
+              {/*)}*/}
               <div className="space-y-2">
                 {fascicolo.note.length === 0 ? (
                   <div className="text-sm text-muted-foreground">Nessuna nota.</div>

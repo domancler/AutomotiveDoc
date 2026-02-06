@@ -163,7 +163,7 @@ export function FascicoliInCorsoPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Fascicoli in corso</h1>
-          <p className="text-sm text-muted-foreground">Lista dei fascicoli su cui puoi operare</p>
+          <p className="text-sm text-muted-foreground">Lista dei fascicoli attualmente modificabili</p>
         </div>
         <div className="w-full md:w-[360px]">
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ricerca per cliente, targa, numero..." />

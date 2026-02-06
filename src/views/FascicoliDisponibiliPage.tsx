@@ -173,7 +173,7 @@ export function FascicoliDisponibiliPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Fascicoli disponibili</h1>
           <p className="text-sm text-muted-foreground">
-            Lista dei fascicoli senza operatore assegnato, disponibili alla presa in carico
+            Lista dei fascicoli disponibili alla presa in carico
           </p>
         </div>
         <div className="w-full md:w-[360px]">
