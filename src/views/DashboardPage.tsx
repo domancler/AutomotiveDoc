@@ -371,7 +371,7 @@ export function DashboardPage() {
 
         <DashboardCard
           title="Tempo medio approvazione"
-          description="Creazione → Approvato"
+          description="Nuovo → Approvato"
           value={kpi.avgApprovalDays == null ? "—" : `${kpi.avgApprovalDays.toFixed(1)} gg`}
           badge={<Badge>⏱️</Badge>}
         />
@@ -385,7 +385,7 @@ export function DashboardPage() {
 
         <DashboardCard
           title="Tempo medio complessivo"
-          description="Creazione → Completato"
+          description="Nuovo → Completato"
           value={kpi.avgTotalDays == null ? "—" : `${kpi.avgTotalDays.toFixed(1)} gg`}
           badge={<Badge variant="success">⏳</Badge>}
         />
@@ -428,7 +428,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Avanzamento</CardTitle>
-            <CardDescription>Bucket percentuale di completamento</CardDescription>
+            <CardDescription>Distribuzione per avanzamento del processo</CardDescription>
           </CardHeader>
           <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
