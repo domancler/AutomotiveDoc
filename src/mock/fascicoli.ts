@@ -174,6 +174,81 @@ export type Fascicolo = {
   }[];
 };
 
+/**
+ * Calcolo progress basato SOLO sugli stati (macro + sotto-stati).
+ *
+ * Distribuzione:
+ * - Bozza: 0..10 (valore fisso 5)
+ * - Nuovo: 10..25 (valore fisso 15)
+ * - In validazione (DA_VALIDARE_BO): 25..75 (media rami)
+ * - Approvato: 75
+ * - In finalizzazione: 80
+ * - Consegna: 90..100 (sotto-stati)
+ * - Completato/Annullato: 100
+ */
+export function computeProgressForFascicolo(
+  f: Pick<Fascicolo, "workflow" | "hasFinanziamento" | "hasPermuta">
+): number {
+  const overall = f.workflow?.overall;
+
+  const branchScore = (s?: StateCode): number => {
+    if (!s) return 0;
+    if (s === States.VALIDATO_BO || s === States.VALIDATO_BOF || s === States.VALIDATO_BOU) return 100;
+    if (s === States.DA_RIVEDERE_BO || s === States.DA_RIVEDERE_BOF || s === States.DA_RIVEDERE_BOU) return 75;
+    if (s === States.VERIFICHE_BO || s === States.VERIFICHE_BOF || s === States.VERIFICHE_BOU) return 50;
+    if (s === States.DA_VALIDARE_BO || s === States.DA_VALIDARE_BOF || s === States.DA_VALIDARE_BOU) return 0;
+    return 0;
+  };
+
+  if (!overall) return 0;
+
+  switch (overall) {
+    case States.BOZZA:
+      return 0;
+
+    case States.NUOVO:
+      return 10;
+
+    case States.DA_VALIDARE_BO: {
+      // Rami attivi: BO sempre, BOF/BOU in base ai flag (e/o presenza nel workflow).
+      const branches: Array<{ key: "bo" | "bof" | "bou"; active: boolean }> = [
+        { key: "bo", active: true },
+        { key: "bof", active: !!(f.hasFinanziamento && (f.workflow as any)?.bof) },
+        { key: "bou", active: !!(f.hasPermuta && (f.workflow as any)?.bou) },
+      ];
+      const active = branches.filter((b) => b.active);
+      const scores = active.map((b) => branchScore((f.workflow as any)?.[b.key]));
+      const avg = scores.length ? scores.reduce((a, x) => a + x, 0) / scores.length : 0; // 0..100
+      // 25..65
+      return Math.round(25 + (avg * 40) / 100);
+    }
+
+    case States.APPROVATO:
+      return 65;
+
+    case States.IN_FINALIZZAZIONE:
+      return 70;
+
+    case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
+      return 80;
+
+    case States.CONSEGNA_IN_VERIFICA:
+      return 90;
+
+    case States.CONSEGNA_DA_CONTROLLARE:
+      return 95;
+
+    case States.COMPLETATO:
+      return 100;
+
+    case States.ANNULLATO:
+      return 0;
+
+    default:
+      return 0;
+  }
+}
+
 function isoDaysAgo(days: number) {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -1317,4 +1392,6 @@ function enrichFascicolo(f: Fascicolo): Fascicolo {
   };
 }
 
-export const fascicoli: Fascicolo[] = baseFascicoli.map(enrichFascicolo);
+export const fascicoli: Fascicolo[] = baseFascicoli
+  .map(enrichFascicolo)
+  .map((f) => ({ ...f, progress: computeProgressForFascicolo(f) }));

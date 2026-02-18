@@ -1,5 +1,6 @@
 import { States, type StateCode } from "@/workflow/states";
 import type { Fascicolo } from "@/mock/fascicoli";
+import { computeProgressForFascicolo } from "@/mock/fascicoli";
 import type { Action } from "@/auth/actions";
 import type { Role } from "@/auth/roles";
 import { DEMO_USERS } from "@/auth/auth";
@@ -82,6 +83,13 @@ export function applyWorkflowAction(
   const actorName = actor.name || actor.role || "Utente";
   const actorId = actor.id ?? null;
 
+  // Progress monotono: non deve mai diminuire (anche in presenza di cicli/ritorni).
+  const finalize = (x: Fascicolo): Fascicolo => {
+    const prev = f.progress ?? 0;
+    const computed = computeProgressForFascicolo(x);
+    return { ...x, progress: Math.max(prev, computed) };
+  };
+
   // Normalizza la presenza dei rami opzionali in base ai flag di dominio.
   // IMPORTANTISSIMO:
   // - bof/bou devono essere *assenti* quando non sono attivi, altrimenti la UI li interpreta come presenti.
@@ -142,7 +150,6 @@ export function applyWorkflowAction(
       setOverall(States.APPROVATO);
       next = {
         ...next,
-        progress: Math.max(next.progress ?? 0, 85),
         timeline: pushTimeline(next, "Sistema", "Fascicolo approvato (tutti i rami validati)"),
       };
     }
@@ -260,7 +267,7 @@ export function applyWorkflowAction(
         ],
       };
 
-      return next;
+      return finalize(next);
     }
 
     case "FASCICOLO.CANCEL": {
@@ -298,7 +305,7 @@ export function applyWorkflowAction(
           },
         ],
       };
-      return next;
+      return finalize(next);
     }
 
     case "FASCICOLO.TAKE_COMM": {
@@ -312,10 +319,9 @@ export function applyWorkflowAction(
         ...next,
         ownerId: actorId,
         assegnatario: actor.name ?? next.assegnatario,
-        progress: Math.max(next.progress ?? 0, 10),
         timeline: pushTimeline(next, actorName, "Presa in carico (venditore)"),
       };
-      return next;
+      return finalize(next);
     }
 
     // --- COMMERCIALE ---
@@ -382,7 +388,6 @@ export function applyWorkflowAction(
 
       next = {
         ...next,
-        progress: Math.max(next.progress ?? 0, 55),
         timeline: pushTimeline(
           next,
           actorName,
@@ -391,7 +396,7 @@ export function applyWorkflowAction(
             : "Inviato ai BackOffice",
         ),
       };
-      return next;
+      return finalize(next);
     }
 
     case "FASCICOLO.REQUEST_REOPEN": {
@@ -414,7 +419,7 @@ export function applyWorkflowAction(
           },
         ],
       };
-      return next;
+      return finalize(next);
     }
 
     case "FASCICOLO.REOPEN": {
@@ -450,8 +455,6 @@ export function applyWorkflowAction(
         lastInChargeBO: acceptingBranch === "bo" ? actorId : next.lastInChargeBO ?? next.inChargeBO ?? null,
         lastInChargeBOF: acceptingBranch === "bof" ? actorId : next.lastInChargeBOF ?? next.inChargeBOF ?? null,
         lastInChargeBOU: acceptingBranch === "bou" ? actorId : next.lastInChargeBOU ?? next.inChargeBOU ?? null,
-        // riapertura = torna indietro: abbassa il progress (senza farlo crollare a 0)
-        progress: Math.min(next.progress ?? 85, 70),
         note: [
           ...(Array.isArray(next.note) ? next.note : []),
           {
@@ -465,7 +468,7 @@ export function applyWorkflowAction(
         timeline: pushTimeline(next, actorName, "Riapertura fascicolo"),
       };
 
-      return next;
+      return finalize(next);
     }
 
     // --- BO Anagrafico ---
@@ -477,7 +480,7 @@ export function applyWorkflowAction(
         lastInChargeBO: actorId,
         timeline: pushTimeline(next, actorName, "BO Anagrafico: preso in carico"),
       };
-      return next;
+      return finalize(next);
     }
     case "FASCICOLO.REQUEST_REVIEW_BO": {
       setBranch("bo", States.DA_RIVEDERE_BO);
@@ -486,18 +489,17 @@ export function applyWorkflowAction(
         inChargeBO: null,
         timeline: pushTimeline(next, actorName, "BO Anagrafico: richieste integrazioni"),
       };
-      return next;
+      return finalize(next);
     }
     case "FASCICOLO.VALIDATE_BO": {
       setBranch("bo", States.VALIDATO_BO);
       next = {
         ...next,
         inChargeBO: null,
-        progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Anagrafico: validato"),
       };
       maybeFanInApprove();
-      return next;
+      return finalize(next);
     }
 
     // --- BO Finanziario ---
@@ -509,7 +511,7 @@ export function applyWorkflowAction(
         lastInChargeBOF: actorId,
         timeline: pushTimeline(next, actorName, "BO Finanziario: preso in carico"),
       };
-      return next;
+      return finalize(next);
     }
     case "FASCICOLO.REQUEST_REVIEW_BOF": {
       setBranch("bof", States.DA_RIVEDERE_BOF);
@@ -518,18 +520,17 @@ export function applyWorkflowAction(
         inChargeBOF: null,
         timeline: pushTimeline(next, actorName, "BO Finanziario: richieste integrazioni"),
       };
-      return next;
+      return finalize(next);
     }
     case "FASCICOLO.VALIDATE_BOF": {
       setBranch("bof", States.VALIDATO_BOF);
       next = {
         ...next,
         inChargeBOF: null,
-        progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Finanziario: validato"),
       };
       maybeFanInApprove();
-      return next;
+      return finalize(next);
     }
 
     // --- BO Permuta ---
@@ -541,7 +542,7 @@ export function applyWorkflowAction(
         lastInChargeBOU: actorId,
         timeline: pushTimeline(next, actorName, "BO Permuta: preso in carico"),
       };
-      return next;
+      return finalize(next);
     }
     case "FASCICOLO.REQUEST_REVIEW_BOU": {
       setBranch("bou", States.DA_RIVEDERE_BOU);
@@ -550,18 +551,17 @@ export function applyWorkflowAction(
         inChargeBOU: null,
         timeline: pushTimeline(next, actorName, "BO Permuta: richieste integrazioni"),
       };
-      return next;
+      return finalize(next);
     }
     case "FASCICOLO.VALIDATE_BOU": {
       setBranch("bou", States.VALIDATO_BOU);
       next = {
         ...next,
         inChargeBOU: null,
-        progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Permuta: validato"),
       };
       maybeFanInApprove();
-      return next;
+      return finalize(next);
     }
 
     // --- Consegna ---
@@ -573,10 +573,9 @@ export function applyWorkflowAction(
         inChargeDelivery: actorId,
         lastInChargeDelivery: actorId,
         deliverySentToVRC: false,
-        progress: Math.max(next.progress ?? 0, 90),
         timeline: pushTimeline(next, actorName, "Operatore consegna: presa in carico"),
       };
-      return next;
+      return finalize(next);
     }
 
     case "DELIVERY.SEND_TO_VRC": {
@@ -596,7 +595,7 @@ export function applyWorkflowAction(
           inChargeVRC: next.lastInChargeVRC ?? null,
           timeline: pushTimeline(next, actorName, "Reinviato a Controllo consegna (ritorno diretto)"),
         };
-        return next;
+        return finalize(next);
       }
 
       setOverall(States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO);
@@ -607,7 +606,7 @@ export function applyWorkflowAction(
         inChargeVRC: null,
         timeline: pushTimeline(next, actorName, "Inviato a Controllo consegna"),
       };
-      return next;
+      return finalize(next);
     }
 
     case "VRC.TAKE": {
@@ -618,7 +617,7 @@ export function applyWorkflowAction(
         lastInChargeVRC: actorId,
         timeline: pushTimeline(next, actorName, "Controllo consegna: preso in carico"),
       };
-      return next;
+      return finalize(next);
     }
 
     case "VRC.REQUEST_FIX": {
@@ -631,7 +630,7 @@ export function applyWorkflowAction(
         deliverySentToVRC: false,
         timeline: pushTimeline(next, actorName, "Controllo consegna: richieste integrazioni"),
       };
-      return next;
+      return finalize(next);
     }
 
     case "VRC.VALIDATE": {
@@ -641,10 +640,10 @@ export function applyWorkflowAction(
         progress: 100,
         timeline: pushTimeline(next, actorName, "Consegna completata"),
       };
-      return next;
+      return finalize(next);
     }
   }
 
   // default: nessun cambiamento
-  return next;
+  return finalize(next);
 }
