@@ -1,10 +1,14 @@
 import type { Fascicolo } from "@/mock/fascicoli";
 import type { Role } from "@/auth/roles";
+import type { AppUser } from "@/auth/can";
 import { States, type StateCode } from "@/workflow/states";
+import { STATUS_COLORS, tint } from "@/ui/fascicoli/statusColors";
 
 export type VisibleStatus = {
   label: string;
   variant: "success" | "warning" | "danger" | "secondary" | "info";
+  /** colore badge (hex/rgb). Se presente, ha priorità sul mapping per label. */
+  color?: string;
   /** per debug/uso interno */
   code?: StateCode;
 };
@@ -44,11 +48,11 @@ function niceStateLabel(state?: StateCode) {
     case States.IN_FINALIZZAZIONE:
       return "In finalizzazione";
     case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
-      return "Consegna – in attesa di presa in carico";
+      return "In attesa di presa in carico";
     case States.CONSEGNA_IN_VERIFICA:
-      return "Consegna – in verifica";
+      return "In verifica";
     case States.CONSEGNA_DA_CONTROLLARE:
-      return "Consegna – da controllare";
+      return "Da controllare";
     case States.COMPLETATO:
       return "Completato";
 
@@ -67,11 +71,66 @@ export function labelFromStateCode(state?: StateCode): string {
   return niceStateLabel(state);
 }
 
-function toVisibleStatus(state?: StateCode, label?: string): VisibleStatus {
+function colorFromState(state?: StateCode): string | undefined {
+  if (!state) return undefined;
+
+  switch (state) {
+    case States.BOZZA:
+      return STATUS_COLORS.BOZZA;
+    case States.NUOVO:
+      return STATUS_COLORS.NUOVO;
+
+    // Micro-stati validazione (tinte del macro VALIDAZIONE)
+    case States.DA_VALIDARE_BO:
+    case States.DA_VALIDARE_BOF:
+    case States.DA_VALIDARE_BOU:
+      return tint(STATUS_COLORS.VALIDAZIONE, 0.45);
+    case States.VERIFICHE_BO:
+    case States.VERIFICHE_BOF:
+    case States.VERIFICHE_BOU:
+      return tint(STATUS_COLORS.VALIDAZIONE, 0.28);
+    case States.DA_RIVEDERE_BO:
+    case States.DA_RIVEDERE_BOF:
+    case States.DA_RIVEDERE_BOU:
+      return tint(STATUS_COLORS.VALIDAZIONE, 0.12);
+    case States.VALIDATO_BO:
+    case States.VALIDATO_BOF:
+    case States.VALIDATO_BOU:
+      return tint(STATUS_COLORS.VALIDAZIONE, 0.05);
+
+    // Macro
+    case States.APPROVATO:
+      return STATUS_COLORS.APPROVATO;
+    case States.IN_FINALIZZAZIONE:
+      return tint(STATUS_COLORS.CONSEGNA, 0.55);
+
+    // Micro-stati consegna (tinte del macro CONSEGNA)
+    case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
+      return tint(STATUS_COLORS.CONSEGNA, 0.40);
+    case States.CONSEGNA_IN_VERIFICA:
+      return tint(STATUS_COLORS.CONSEGNA, 0.25);
+    case States.CONSEGNA_DA_CONTROLLARE:
+      return tint(STATUS_COLORS.CONSEGNA, 0.12);
+
+    case States.COMPLETATO:
+      return STATUS_COLORS.COMPLETATO;
+    case States.ANNULLATO:
+      return STATUS_COLORS.ANNULLATO;
+
+    default:
+      return undefined;
+  }
+}
+
+function toVisibleStatus(state?: StateCode, label?: string, colorOverride?: string): VisibleStatus {
   const computedLabel = label ?? niceStateLabel(state);
   const variant = variantFromState(state);
+  const color = colorOverride ?? colorFromState(state);
   // Con exactOptionalPropertyTypes, una prop opzionale NON accetta `undefined` se presente.
-  return state ? { label: computedLabel, variant, code: state } : { label: computedLabel, variant };
+  if (state) {
+    return color ? { label: computedLabel, variant, color, code: state } : { label: computedLabel, variant, code: state };
+  }
+  return color ? { label: computedLabel, variant, color } : { label: computedLabel, variant };
 }
 
 function variantFromState(state?: StateCode): VisibleStatus["variant"] {
@@ -218,6 +277,81 @@ export function visibleStatusForRole(f: Fascicolo, role?: Role): VisibleStatus {
   }
 
   return macro;
+}
+
+/**
+ * Stato “visibile” in lista/header, in base all'utente corrente.
+ * Regole:
+ * - Validazione:
+ *   - BO/BOF/BOU vedono il micro-stato se il ramo non è ancora assegnato oppure se sono l'assegnatario (inCharge*).
+ *   - COMMERCIALE vede "Da controllare" se almeno un ramo è "da controllare".
+ *   - altri vedono il macro "In validazione".
+ * - Consegna:
+ *   - VRC vede il micro-stato.
+ *   - CONSEGNATORE vede "Da controllare" se lo stato consegna è "da controllare".
+ *   - altri vedono il macro "Consegna".
+ */
+export function visibleStatusForViewer(f: Fascicolo, user?: AppUser | null): VisibleStatus {
+  const role = user?.role;
+  const overall = getOverallState(f);
+
+  // Stati semplici (macro)
+  if (!overall) return toVisibleStatus(undefined, "—");
+  if (overall === States.BOZZA) return toVisibleStatus(overall);
+  if (overall === States.ANNULLATO) return toVisibleStatus(overall);
+  if (overall === States.NUOVO) return toVisibleStatus(overall);
+  if (overall === States.APPROVATO) return toVisibleStatus(overall);
+  if (overall === States.IN_FINALIZZAZIONE) return toVisibleStatus(overall);
+  if (overall === States.COMPLETATO) return toVisibleStatus(overall);
+
+  // Consegna (macro + micro)
+  if (
+    overall === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO ||
+    overall === States.CONSEGNA_IN_VERIFICA ||
+    overall === States.CONSEGNA_DA_CONTROLLARE
+  ) {
+    if (role === "VRC") {
+      // VRC vede il micro-stato (label senza prefisso "Consegna")
+      return toVisibleStatus(overall);
+    }
+
+    if (role === "CONSEGNATORE" && overall === States.CONSEGNA_DA_CONTROLLARE) {
+      // OC vede "Da controllare" ma con tinta consegna
+      return toVisibleStatus(overall, "Da controllare", tint(STATUS_COLORS.CONSEGNA, 0.12));
+    }
+
+    // altri: macro "Consegna" con colore macro
+    return toVisibleStatus(undefined, "Consegna", STATUS_COLORS.CONSEGNA);
+  }
+
+  // Fase BO (validazione): overall è tipicamente uno dei codici della fase.
+  const review = firstReviewBranchState(f);
+
+  // Venditore: se almeno un ramo è "da controllare" mostra "Da controllare"
+  if (role === "COMMERCIALE" && review) {
+    return toVisibleStatus(review);
+  }
+
+  // BO / BOF / BOU: micro-stato se il ramo NON è ancora assegnato, oppure se l'utente è l'assegnatario.
+  // Se il ramo è già preso in carico da un altro utente, il viewer viene trattato come "non BO" (macro).
+  if (role === "BO" && user?.id) {
+    if (!f.inChargeBO || f.inChargeBO === user.id) {
+      return toVisibleStatus(getBranchState(f, "BO"));
+    }
+  }
+  if (role === "BOF" && user?.id) {
+    if (!f.inChargeBOF || f.inChargeBOF === user.id) {
+      return toVisibleStatus(getBranchState(f, "BOF"));
+    }
+  }
+  if (role === "BOU" && user?.id) {
+    if (!f.inChargeBOU || f.inChargeBOU === user.id) {
+      return toVisibleStatus(getBranchState(f, "BOU"));
+    }
+  }
+
+  // Tutti gli altri: macro "In validazione" con colore macro
+  return toVisibleStatus(undefined, "In validazione", STATUS_COLORS.VALIDAZIONE);
 }
 
 export function branchStatusBadges(f: Fascicolo) {

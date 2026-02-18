@@ -10,7 +10,7 @@ import { cn, formatEuro } from "@/lib/utils";
 import { statoVariant } from "@/ui/fascicoli/status";
 import { colorForStatoLabel } from "@/ui/fascicoli/statusColors";
 import { useAuth } from "@/auth/AuthProvider";
-import { visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
+import { visibleStatusForViewer } from "@/ui/fascicoli/workflowStatus";
 
 type PageSize = 10 | 20 | 50;
 
@@ -108,7 +108,7 @@ export function FascicoliCards({
         {slice.map((f) => {
           const vehicle = `${f.veicolo.marca} ${f.veicolo.modello}`;
           const idLabel = f.numero || f.id;
-          const vs = f.workflow ? visibleStatusForRole(f, user?.role as any) : null;
+          const vs = f.workflow ? visibleStatusForViewer(f, user as any) : null;
           const targaOrVin = f.veicolo.targa
             ? { label: "Targa", value: f.veicolo.targa }
             : f.veicolo.vin
@@ -128,7 +128,7 @@ export function FascicoliCards({
                       <Badge
                         className={cn("border-0 text-white")}
                         variant={vs.variant as any}
-                        style={{ backgroundColor: colorForStatoLabel(vs.label) }}
+                        style={{ backgroundColor: vs.color ?? colorForStatoLabel(vs.label) }}
                       >
                         {vs.label}
                       </Badge>
