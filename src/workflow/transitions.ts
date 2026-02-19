@@ -68,6 +68,48 @@ function pushTimeline(f: Fascicolo, actor: string, event: string) {
   return [...timeline, { at: nowIso(), actor, event }];
 }
 
+/**
+ * Calcolo percentuale di avanzamento (0..100) basato SOLO sul macrostato (workflow.overall).
+ *
+ * Mappa ufficiale:
+ * - Bozza: 0
+ * - Nuovo: 10
+ * - In validazione (DA_VALIDARE_BO): 25
+ * - Approvato: 65
+ * - In finalizzazione: 70
+ * - Consegna - in attesa: 80
+ * - Consegna - in verifica: 90
+ * - Consegna - da controllare: 95
+ * - Completato: 100
+ * - Annullato: 0
+ */
+function progressForOverall(overall: StateCode): number {
+  switch (overall) {
+    case States.BOZZA:
+      return 0;
+    case States.NUOVO:
+      return 10;
+    case States.DA_VALIDARE_BO:
+      return 25;
+    case States.APPROVATO:
+      return 65;
+    case States.IN_FINALIZZAZIONE:
+      return 70;
+    case States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO:
+      return 80;
+    case States.CONSEGNA_IN_VERIFICA:
+      return 90;
+    case States.CONSEGNA_DA_CONTROLLARE:
+      return 95;
+    case States.COMPLETATO:
+      return 100;
+    case States.ANNULLATO:
+      return 0;
+    default:
+      return 0;
+  }
+}
+
 export function applyWorkflowAction(
   f: Fascicolo,
   action: Action,
@@ -122,6 +164,8 @@ export function applyWorkflowAction(
       ...next,
       workflow: { ...(next.workflow as any), overall: s },
       stato: normalizeStato(next, s),
+      // Avanzamento calcolato esclusivamente dal macrostato
+      progress: progressForOverall(s),
     };
   };
 
@@ -142,7 +186,6 @@ export function applyWorkflowAction(
       setOverall(States.APPROVATO);
       next = {
         ...next,
-        progress: Math.max(next.progress ?? 0, 85),
         timeline: pushTimeline(next, "Sistema", "Fascicolo approvato (tutti i rami validati)"),
       };
     }
@@ -337,7 +380,6 @@ export function applyWorkflowAction(
         ...next,
         ownerId: actorId,
         assegnatario: actor.name ?? next.assegnatario,
-        progress: Math.max(next.progress ?? 0, 10),
         timeline: pushTimeline(next, actorName, "Presa in carico (venditore)"),
       };
       return next;
@@ -407,7 +449,6 @@ export function applyWorkflowAction(
 
       next = {
         ...next,
-        progress: Math.max(next.progress ?? 0, 55),
         timeline: pushTimeline(
           next,
           actorName,
@@ -475,8 +516,6 @@ export function applyWorkflowAction(
         lastInChargeBO: acceptingBranch === "bo" ? actorId : next.lastInChargeBO ?? next.inChargeBO ?? null,
         lastInChargeBOF: acceptingBranch === "bof" ? actorId : next.lastInChargeBOF ?? next.inChargeBOF ?? null,
         lastInChargeBOU: acceptingBranch === "bou" ? actorId : next.lastInChargeBOU ?? next.inChargeBOU ?? null,
-        // riapertura = torna indietro: abbassa il progress (senza farlo crollare a 0)
-        progress: Math.min(next.progress ?? 85, 70),
         note: [
           ...(Array.isArray(next.note) ? next.note : []),
           {
@@ -518,7 +557,6 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeBO: null,
-        progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Anagrafico: validato"),
       };
       maybeFanInApprove();
@@ -550,7 +588,6 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeBOF: null,
-        progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Finanziario: validato"),
       };
       maybeFanInApprove();
@@ -582,7 +619,6 @@ export function applyWorkflowAction(
       next = {
         ...next,
         inChargeBOU: null,
-        progress: Math.max(next.progress ?? 0, 70),
         timeline: pushTimeline(next, actorName, "BO Permuta: validato"),
       };
       maybeFanInApprove();
@@ -598,7 +634,6 @@ export function applyWorkflowAction(
         inChargeDelivery: actorId,
         lastInChargeDelivery: actorId,
         deliverySentToVRC: false,
-        progress: Math.max(next.progress ?? 0, 90),
         timeline: pushTimeline(next, actorName, "Operatore consegna: presa in carico"),
       };
       return next;
@@ -663,7 +698,6 @@ export function applyWorkflowAction(
       setOverall(States.COMPLETATO);
       next = {
         ...next,
-        progress: 0,
         timeline: pushTimeline(next, actorName, "Consegna completata"),
       };
       return next;
