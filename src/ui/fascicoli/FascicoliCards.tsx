@@ -10,7 +10,7 @@ import { cn, formatEuro } from "@/lib/utils";
 import { statoVariant } from "@/ui/fascicoli/status";
 import { colorForStatoLabel } from "@/ui/fascicoli/statusColors";
 import { useAuth } from "@/auth/AuthProvider";
-import { visibleStatusForViewer } from "@/ui/fascicoli/workflowStatus";
+import { visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
 
 type PageSize = 10 | 20 | 50;
 
@@ -108,7 +108,7 @@ export function FascicoliCards({
         {slice.map((f) => {
           const vehicle = `${f.veicolo.marca} ${f.veicolo.modello}`;
           const idLabel = f.numero || f.id;
-          const vs = f.workflow ? visibleStatusForViewer(f, user as any) : null;
+          const vs = f.workflow ? visibleStatusForRole(f, user?.role as any) : null;
           const targaOrVin = f.veicolo.targa
             ? { label: "Targa", value: f.veicolo.targa }
             : f.veicolo.vin
@@ -124,15 +124,20 @@ export function FascicoliCards({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="min-w-0 truncate font-semibold">{vehicle}</div>
-                    {vs ? (
+                    {vs ? <>
                       <Badge
                         className={cn("border-0 text-white")}
                         variant={vs.variant as any}
-                        style={{ backgroundColor: vs.color ?? colorForStatoLabel(vs.label) }}
+                        style={{ backgroundColor: colorForStatoLabel(vs.label) }}
                       >
                         {vs.label}
                       </Badge>
-                    ) : (
+                      {user?.role === "RESPONSABILE" && f.cancelRequested && (
+                        <Badge className="border-0 text-xs px-2 py-0.5 text-white" style={{ backgroundColor: colorForStatoLabel("Annullato") }}>
+                          Richiesta annullamento
+                        </Badge>
+                      )}
+                    </> : (
                       <Badge
                         className={cn("border-0 text-white")}
                         variant={statoVariant(f.stato) as any}

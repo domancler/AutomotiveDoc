@@ -302,8 +302,12 @@ function reasonByState(action: Action, state?: string) {
       return inState([States.CONSEGNA_IN_VERIFICA]);
 
     case "FASCICOLO.CANCEL":
-      // Sempre disponibile tranne in Bozza
-      return state === States.BOZZA ? "Non disponibile in: Bozza" : "";
+      // Gestito dai permessi (solo Supervisore)
+      return "";
+
+    case "FASCICOLO.REQUEST_CANCEL":
+      // Gestito dai permessi (segnalazione in base a macro-stato)
+      return "";
 
     default:
       return "Non disponibile in questo stato";
@@ -441,6 +445,7 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
   };
 
   const [cancelOpen, setCancelOpen] = React.useState(false);
+  const [cancelRequestOpen, setCancelRequestOpen] = React.useState(false);
   const [reassignOpen, setReassignOpen] = React.useState(false);
 
   const doAction = (
@@ -764,6 +769,34 @@ export function FascicoloActionsTab({ fascicolo }: { fascicolo: Fascicolo }) {
               return "";
             })()}
           />
+        </div>
+      )}
+
+
+      {/* Richiesta annullamento (segnalazione) */}
+      {allowed("FASCICOLO.REQUEST_CANCEL") && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="mb-3">
+            <div className="text-sm font-semibold">Richiesta annullamento</div>
+            <div className="text-xs text-muted-foreground">
+              Invia una segnalazione al Supervisore. Il fascicolo non viene annullato automaticamente.
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <ActionCard
+              title={fascicolo.cancelRequested ? "Segnalazione già inviata" : "Segnala annullamento"}
+              subtitle={
+                fascicolo.cancelRequested
+                  ? "È già presente una richiesta di annullamento per questo fascicolo."
+                  : "Richiede nota obbligatoria (motivazione)."
+              }
+              icon={<Ban className="h-5 w-5" />}
+              tone="outline"
+              enabled={!fascicolo.cancelRequested}
+              onClick={() => setCancelRequestOpen(true)}
+              disabledReason={fascicolo.cancelRequested ? "Richiesta già presente" : disabledReason("FASCICOLO.REQUEST_CANCEL")}
+            />
+          </div>
         </div>
       )}
 

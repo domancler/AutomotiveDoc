@@ -33,6 +33,7 @@ export type Action =
 
   // annullamento (finale alternativo)
   | "FASCICOLO.CANCEL"
+  | "FASCICOLO.REQUEST_CANCEL"
 
   // riassegnazione (supervisore)
   | "FASCICOLO.REASSIGN"

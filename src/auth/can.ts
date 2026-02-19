@@ -81,25 +81,84 @@ function isActiveArea(f: FascicoloContext | undefined, area: "BOF" | "BOU") {
 
 export function can(user: AppUser, action: Action, fascicolo?: FascicoloContext): boolean {
   const role = user.role;
+  // NOTA: alcune UI passano anche overallState (macrostato) per distinguere fase reale vs microstati ramo.
+  // Usiamo sempre overallState quando presente per le decisioni “di fase”, altrimenti fallback su state.
   const state = st(fascicolo);
+  const phaseState = fascicolo?.overallState ?? state;
 
-  // Annullamento: azione “cross-cutting”
-  // - disponibile in tutti gli stati tranne Bozza
-  // - solo owner del fascicolo “in mano” (nel momento corrente) oppure supervisore (RESPONSABILE)
-  if (action === "FASCICOLO.CANCEL") {
-    if (!fascicolo) return false;
-    if (!state || state === States.BOZZA || state === States.ANNULLATO) return false;
-    // supervisore: sempre (a prescindere da chi lo ha in carico)
-    if (role === "RESPONSABILE") return true;
-    // altri ruoli: solo se lo hanno in carico / owner
-    if (fascicolo.ownerId === user.id) return true;
-    if (fascicolo.inChargeBO === user.id) return true;
-    if (fascicolo.inChargeBOF === user.id) return true;
-    if (fascicolo.inChargeBOU === user.id) return true;
-    if (fascicolo.inChargeDelivery === user.id) return true;
-    if (fascicolo.inChargeVRC === user.id) return true;
+  // Annullamento: azione “finale” (irreversibile)
+// - SOLO il Supervisore (RESPONSABILE) può annullare
+// - consentito in qualsiasi stato, tranne se già ANNULLATO
+if (action === "FASCICOLO.CANCEL") {
+  if (!fascicolo) return false;
+  if (!phaseState || phaseState === States.ANNULLATO) return false;
+  return role === "RESPONSABILE";
+}
+
+// Richiesta annullamento (segnalazione verso Supervisore)
+// - il Supervisore non segnala: annulla direttamente
+// - gli altri possono segnalare solo in base al MACROSTATO e alla responsabilità “ufficiale”
+if (action === "FASCICOLO.REQUEST_CANCEL") {
+  if (!fascicolo) return false;
+  if (!phaseState || phaseState === States.ANNULLATO) return false;
+  if (role === "RESPONSABILE") return false; // annulla direttamente
+
+  // Bozza: nessuno segnala
+  if (phaseState === States.BOZZA) return false;
+
+  // Nuovo: solo venditore owner
+  if (phaseState === States.NUOVO) {
+    return role === "COMMERCIALE" && fascicolo.ownerId === user.id;
+  }
+
+  // In finalizzazione: solo Operatore Consegna (CONSEGNATORE)
+  // NB: solo quando ha effettivamente l'operatività (preso in carico)
+  if (phaseState === States.IN_FINALIZZAZIONE) {
+    return role === "CONSEGNATORE" && fascicolo.inChargeDelivery === user.id;
+  }
+
+  // Consegna: solo Controllo Consegna (VRC) *se incaricato*.
+  // In particolare, in "in attesa di presa in carico" non deve poter segnalare finché non prende in carico.
+  if (
+    phaseState === States.CONSEGNA_IN_ATTESA_PRESA_IN_CARICO ||
+    phaseState === States.CONSEGNA_IN_VERIFICA ||
+    phaseState === States.CONSEGNA_DA_CONTROLLARE
+  ) {
+    return role === "VRC" && fascicolo.inChargeVRC === user.id;
+  }
+
+  // Validazione + Approvato: solo BO assegnatario del ramo (a prescindere dal sottostato del ramo)
+  const isValidationState = [
+    States.DA_VALIDARE_BO, States.VERIFICHE_BO, States.DA_RIVEDERE_BO, States.VALIDATO_BO,
+    States.DA_VALIDARE_BOF, States.VERIFICHE_BOF, States.DA_RIVEDERE_BOF, States.VALIDATO_BOF,
+    States.DA_VALIDARE_BOU, States.VERIFICHE_BOU, States.DA_RIVEDERE_BOU, States.VALIDATO_BOU,
+    States.APPROVATO,
+  ].includes(state);
+
+  if (isValidationState) {
+    if (role === "BO") {
+      // In alcuni micro-stati (es. DA_RIVEDERE/VALIDATO) o in APPROVATO, l'incarico può risultare liberato (null).
+      // In quel caso, la responsabilità resta attribuita all'ultimo incaricato del ramo.
+      if (fascicolo.inChargeBO && fascicolo.inChargeBO !== user.id) return false;
+      if (fascicolo.inChargeBO === user.id) return true;
+      return fascicolo.lastInChargeBO === user.id;
+    }
+    if (role === "BOF") {
+      if (fascicolo.inChargeBOF && fascicolo.inChargeBOF !== user.id) return false;
+      if (fascicolo.inChargeBOF === user.id) return true;
+      return fascicolo.lastInChargeBOF === user.id;
+    }
+    if (role === "BOU") {
+      if (fascicolo.inChargeBOU && fascicolo.inChargeBOU !== user.id) return false;
+      if (fascicolo.inChargeBOU === user.id) return true;
+      return fascicolo.lastInChargeBOU === user.id;
+    }
     return false;
   }
+
+  return false;
+}
+
 
   // Lettura generale: tutti i ruoli devono poter vedere Dashboard e tab 'Tutti'
   if (action === "DASHBOARD.VIEW") return true;

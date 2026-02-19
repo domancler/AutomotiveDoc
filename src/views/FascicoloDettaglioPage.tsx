@@ -11,7 +11,7 @@ import { cn, formatEuro } from "@/lib/utils";
 import { FileUp, CheckCircle2, Clock3, Trash2, Car, User, CalendarDays, ChevronDown, Check, Search, PenLine } from "lucide-react";
 import { FascicoloActionsTab } from "@/ui/fascicoli/FascicoloActionsTab";
 import { useAuth } from "@/auth/AuthProvider";
-import { branchStatusBadges, visibleStatusForViewer } from "@/ui/fascicoli/workflowStatus";
+import { branchStatusBadges, visibleStatusForRole } from "@/ui/fascicoli/workflowStatus";
 import { statoVariant } from "@/ui/fascicoli/status";
 import { colorForStatoLabel } from "@/ui/fascicoli/statusColors";
 import { States } from "@/workflow/states";
@@ -463,7 +463,7 @@ export function FascicoloDettaglioPage() {
 
   const vs = useMemo(() => {
     if (!fascicolo) return null;
-    return fascicolo.workflow ? visibleStatusForViewer(fascicolo, user as any) : null;
+    return fascicolo.workflow ? visibleStatusForRole(fascicolo, user?.role as any) : null;
   }, [fascicolo, user?.role]);
 
   const showBackofficeTab = useMemo(() => {
@@ -520,15 +520,20 @@ export function FascicoloDettaglioPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {vs ? (
+          {vs ? <>
             <Badge
               className="border-0 text-sm px-3 py-1 text-white"
               variant={vs.variant as any}
-              style={{ backgroundColor: vs.color ?? colorForStatoLabel(vs.label) }}
+              style={{ backgroundColor: colorForStatoLabel(vs.label) }}
             >
               {vs.label}
             </Badge>
-          ) : (
+            {user?.role === "RESPONSABILE" && fascicolo.cancelRequested && (
+              <Badge className="border-0 text-xs px-2 py-1 text-white" style={{ backgroundColor: colorForStatoLabel("Annullato") }}>
+                Richiesta annullamento
+              </Badge>
+            )}
+          </> : (
             <Badge
               className="border-0 text-sm px-3 py-1 text-white"
               variant={statoVariant(fascicolo.stato) as any}
@@ -1000,7 +1005,7 @@ export function FascicoloDettaglioPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <ol className="space-y-3">
-                {fascicolo.timeline
+                {fascicolo?.timeline
                   .slice()
                   .reverse()
                   .map((t, idx) => (
@@ -1031,7 +1036,7 @@ export function FascicoloDettaglioPage() {
               {/*  </div>*/}
               {/*)}*/}
               <div className="space-y-2">
-                {fascicolo.note.length === 0 ? (
+                {!(fascicolo) || fascicolo.note.length === 0 ? (
                   <div className="text-sm text-muted-foreground">Nessuna nota.</div>
                 ) : (
                   fascicolo.note
